@@ -3,7 +3,7 @@
 > A full-stack business management application for small-to-medium enterprises.
 > Track customers, products, orders, stock, payments, and expenses — all from one dashboard.
 
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Node](https://img.shields.io/badge/node-18%2B-green)
 ![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688)
@@ -20,7 +20,7 @@ expense monitoring. It is built with a clean REST API backend and a responsive
 single-page frontend.
 
 The project was developed with **AI-assisted coding** (GitHub Copilot & Claude)
-and is released as **open-source software** under the MIT License.
+and is released as **free software** under the GNU General Public License v3.0 or later.
 
 ---
 
@@ -227,7 +227,7 @@ Full interactive documentation: **http://localhost:8000/docs**
 
 ## License
 
-This project is released under the **MIT License**. See [LICENSE](LICENSE) for details.
+This project is licensed under the **GNU General Public License v3.0 or later**. See the [LICENSE](LICENSE) file for details.
 
 ---
 

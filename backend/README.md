@@ -4,6 +4,13 @@ FastAPI REST API powering the INACORTS business management system.
 
 ---
 
+## License
+
+This project is licensed under the **GNU General Public License v3.0 or later**.
+See the [LICENSE](../LICENSE) file for details.
+
+---
+
 ## Quick Start
 
 ```bash

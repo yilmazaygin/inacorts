@@ -2,6 +2,13 @@
 
 React single-page application for the INACORTS business management system.
 
+---
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0 or later**.
+See the [LICENSE](../LICENSE) file for details.
+
 > **This frontend was AI-generated** using GitHub Copilot and Claude, with
 > manual review and refinement throughout the codebase.
 
