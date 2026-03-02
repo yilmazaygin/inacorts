@@ -41,8 +41,23 @@ build/
 *.sqlite
 *.sqlite3
 
-# Logs
+# Database directory — keep the folder, ignore db files
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+database/backups/*.db
+database/backups/*.sqlite
+database/backups/*.sqlite3
+!database/.gitkeep
+!database/backups/.gitkeep
+
+# Logs — ignore log files but keep directory structure
 logs/
+backend/logs/
+!backend/logs/.gitkeep
+!backend/logs/backups/
+backend/logs/backups/*
+!backend/logs/backups/.gitkeep
 *.log
 
 # Coverage & testing

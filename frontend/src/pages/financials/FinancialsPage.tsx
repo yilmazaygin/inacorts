@@ -363,7 +363,7 @@ export const FinancialsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {topSalesInsights.highestLineItems && (
                     <div
-                      onClick={() => navigate(`/orders/${topSalesInsights.highestLineItems!.orderId}`)}
+                      onClick={() => navigate(`/admin/orders/${topSalesInsights.highestLineItems!.orderId}`)}
                       className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                     >
                       <div className="flex items-center space-x-2 mb-2">
@@ -379,7 +379,7 @@ export const FinancialsPage: React.FC = () => {
 
                   {topSalesInsights.highestVolume && (
                     <div
-                      onClick={() => navigate(`/orders/${topSalesInsights.highestVolume!.orderId}`)}
+                      onClick={() => navigate(`/admin/orders/${topSalesInsights.highestVolume!.orderId}`)}
                       className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
                     >
                       <div className="flex items-center space-x-2 mb-2">
@@ -395,7 +395,7 @@ export const FinancialsPage: React.FC = () => {
 
                   {topSalesInsights.highestProfit && (
                     <div
-                      onClick={() => navigate(`/orders/${topSalesInsights.highestProfit!.orderId}`)}
+                      onClick={() => navigate(`/admin/orders/${topSalesInsights.highestProfit!.orderId}`)}
                       className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
                     >
                       <div className="flex items-center space-x-2 mb-2">

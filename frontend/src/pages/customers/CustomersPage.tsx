@@ -48,7 +48,7 @@ export const CustomersPage: React.FC = () => {
       setCustomers(data.items);
       setTotalPages(data.total_pages);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load customers');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +69,7 @@ export const CustomersPage: React.FC = () => {
       setFormData({ name: '', address: '', phone: '', email: '', website: '' });
       loadCustomers();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to create customer'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -82,7 +82,7 @@ export const CustomersPage: React.FC = () => {
       await customersApi.delete(id);
       loadCustomers();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to delete customer'));
+      alert(getErrorMessage(err, t('errors.deleteFailed')));
     }
   };
 
@@ -112,7 +112,7 @@ export const CustomersPage: React.FC = () => {
           items={[
             {
               label: t('common.view'),
-              onClick: () => navigate(`/customers/${c.id}`),
+              onClick: () => navigate(`/admin/customers/${c.id}`),
             },
             {
               label: t('common.delete'),
@@ -181,7 +181,7 @@ export const CustomersPage: React.FC = () => {
               <Table
                 columns={columns}
                 data={customers}
-                onRowClick={(customer) => navigate(`/customers/${customer.id}`)}
+                onRowClick={(customer) => navigate(`/admin/customers/${customer.id}`)}
               />
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </>

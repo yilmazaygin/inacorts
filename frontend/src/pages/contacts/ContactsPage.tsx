@@ -49,7 +49,7 @@ export const ContactsPage: React.FC = () => {
       setContacts(data.items);
       setTotalPages(data.total_pages);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load contacts');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +74,7 @@ export const ContactsPage: React.FC = () => {
       resetForm();
       loadContacts();
     } catch (err: any) {
-      alert(getErrorMessage(err, `Failed to ${isEditing ? 'update' : 'create'} contact`));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -87,7 +87,7 @@ export const ContactsPage: React.FC = () => {
       await contactsApi.delete(id);
       loadContacts();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to delete contact'));
+      alert(getErrorMessage(err, t('errors.deleteFailed')));
     }
   };
 
@@ -140,7 +140,7 @@ export const ContactsPage: React.FC = () => {
           items={[
             {
               label: t('common.view'),
-              onClick: () => navigate(`/contacts/${c.id}`),
+              onClick: () => navigate(`/admin/contacts/${c.id}`),
             },
             {
               label: t('common.edit'),
@@ -203,7 +203,7 @@ export const ContactsPage: React.FC = () => {
             </div>
           ) : (
             <>
-              <Table columns={columns} data={contacts} onRowClick={(contact) => navigate(`/contacts/${contact.id}`)} />
+              <Table columns={columns} data={contacts} onRowClick={(contact) => navigate(`/admin/contacts/${contact.id}`)} />
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </>
           )}

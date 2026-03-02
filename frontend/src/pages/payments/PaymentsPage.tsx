@@ -41,7 +41,7 @@ export const PaymentsPage: React.FC = () => {
       setTotalPages(paymentsData.total_pages);
       setOrders(ordersData.items);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load payments');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +76,7 @@ export const PaymentsPage: React.FC = () => {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            navigate(`/orders/${p.order_id}`);
+            navigate(`/admin/orders/${p.order_id}`);
           }}
           className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
         >

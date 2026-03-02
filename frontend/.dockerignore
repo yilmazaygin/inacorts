@@ -1,0 +1,35 @@
+# Frontend .dockerignore
+# Excludes files that should not be copied into the Docker build stage.
+
+# Dependencies (installed fresh inside the container via npm ci)
+node_modules/
+
+# Build output (generated inside the container)
+dist/
+
+# Environment files (not needed — API base URL defaults to relative)
+.env
+.env.local
+.env.*.local
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker (prevent recursive copy)
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md

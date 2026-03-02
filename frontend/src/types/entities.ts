@@ -21,8 +21,100 @@ export interface BaseEntity {
 export interface User {
   id: number;
   username: string;
+  email?: string;
   is_admin: boolean;
   is_active: boolean;
+  created_by?: number;
+  created_by_username?: string;
+  created_at?: string;
+  updated_at?: string;
+  deactivated_at?: string;
+  name?: string;
+  surname?: string;
+  address?: string;
+  backup_email?: string;
+  phone_number?: string;
+  security_question_1?: string;
+  security_question_2?: string;
+  has_security_questions: boolean;
+}
+
+export interface UserCreate {
+  username: string;
+  password: string;
+  email?: string;
+  is_admin?: boolean;
+  name?: string;
+  surname?: string;
+  address?: string;
+  backup_email?: string;
+  phone_number?: string;
+}
+
+export interface UserUpdate {
+  email?: string;
+  is_admin?: boolean;
+  name?: string;
+  surname?: string;
+  address?: string;
+  backup_email?: string;
+  phone_number?: string;
+}
+
+export interface UserProfileUpdate {
+  email?: string;
+  name?: string;
+  surname?: string;
+  address?: string;
+  backup_email?: string;
+  phone_number?: string;
+}
+
+export interface SecurityQuestionSetup {
+  security_question_1: string;
+  security_answer_1: string;
+  security_question_2: string;
+  security_answer_2: string;
+}
+
+export interface SecurityQuestionUpdate {
+  current_password: string;
+  security_question_1?: string;
+  security_answer_1?: string;
+  security_question_2?: string;
+  security_answer_2?: string;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface VerifyPasswordRequest {
+  password: string;
+}
+
+export interface ForgotPasswordQuestionsRequest {
+  username: string;
+}
+
+export interface ForgotPasswordQuestionsResponse {
+  security_question_1?: string;
+  security_question_2?: string;
+  has_questions: boolean;
+}
+
+export interface ForgotPasswordVerifyAnswersRequest {
+  username: string;
+  security_answer_1: string;
+  security_answer_2: string;
+}
+
+export interface ForgotPasswordResetRequest {
+  username: string;
+  security_answer_1: string;
+  security_answer_2: string;
+  new_password: string;
 }
 
 // Customer

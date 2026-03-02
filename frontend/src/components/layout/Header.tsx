@@ -4,8 +4,13 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-export const Header: React.FC = () => {
-  const { logout } = useAuth();
+interface HeaderProps {
+  isMobileMenuOpen: boolean;
+  onToggleMobileMenu: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ isMobileMenuOpen, onToggleMobileMenu }) => {
+  const { logout, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -13,7 +18,7 @@ export const Header: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   const changeLanguage = (lang: string) => {
@@ -27,7 +32,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/admin/dashboard')}
               className="text-xl font-bold text-primary-600 dark:text-primary-400"
             >
               INACORTS
@@ -42,7 +47,7 @@ export const Header: React.FC = () => {
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none"
               >
                 <div className="w-8 h-8 bg-primary-600 dark:bg-primary-500 rounded-full flex items-center justify-center text-white font-medium">
-                  U
+                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
                 <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -56,6 +61,20 @@ export const Header: React.FC = () => {
                     onClick={() => setShowUserMenu(false)}
                   />
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+                    {/* My Account */}
+                    <button
+                      onClick={() => {
+                        navigate('/admin/my-account');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span>{t('users.myAccount')}</span>
+                    </button>
+
                     {/* Dark/Light Mode Toggle */}
                     <button
                       onClick={() => {
@@ -132,6 +151,23 @@ export const Header: React.FC = () => {
                 </>
               )}
             </div>
+
+            {/* Mobile hamburger button */}
+            <button
+              onClick={onToggleMobileMenu}
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none text-gray-600 dark:text-gray-400"
+              aria-label="Toggle navigation"
+            >
+              {isMobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
       </div>

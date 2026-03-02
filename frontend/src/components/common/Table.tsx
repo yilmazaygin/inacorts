@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface Column<T> {
   key: string;
@@ -14,12 +15,14 @@ interface TableProps<T> {
   emptyMessage?: string;
 }
 
-export function Table<T extends { id: number }>({ 
-  columns, 
-  data, 
+export function Table<T extends { id: number }>({
+  columns,
+  data,
   onRowClick,
-  emptyMessage = 'No data available',
+  emptyMessage,
 }: TableProps<T>) {
+  const { t } = useTranslation();
+  const resolvedEmptyMessage = emptyMessage || t('common.noData');
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -39,7 +42,7 @@ export function Table<T extends { id: number }>({
           {data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                {emptyMessage}
+                {resolvedEmptyMessage}
               </td>
             </tr>
           ) : (

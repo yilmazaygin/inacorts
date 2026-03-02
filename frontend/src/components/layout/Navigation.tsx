@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -8,13 +8,17 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-export const Navigation: React.FC = () => {
+interface NavigationProps {
+  isMobileMenuOpen: boolean;
+  onCloseMobileMenu: () => void;
+}
+
+export const Navigation: React.FC<NavigationProps> = ({ isMobileMenuOpen, onCloseMobileMenu }) => {
   const { t } = useTranslation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems: NavItem[] = [
     {
-      path: '/',
+      path: '/admin/dashboard',
       labelKey: 'nav.dashboard',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -23,7 +27,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/orders',
+      path: '/admin/orders',
       labelKey: 'nav.orders',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -32,7 +36,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/customers',
+      path: '/admin/customers',
       labelKey: 'nav.customers',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -41,7 +45,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/products',
+      path: '/admin/products',
       labelKey: 'nav.products',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -50,7 +54,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/stock',
+      path: '/admin/stock',
       labelKey: 'nav.stock',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -59,7 +63,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/payments',
+      path: '/admin/payments',
       labelKey: 'nav.payments',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -68,7 +72,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/expenses',
+      path: '/admin/expenses',
       labelKey: 'nav.expenses',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,7 +81,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/contacts',
+      path: '/admin/contacts',
       labelKey: 'nav.contacts',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -86,7 +90,7 @@ export const Navigation: React.FC = () => {
       ),
     },
     {
-      path: '/financials',
+      path: '/admin/financials',
       labelKey: 'nav.financials',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -94,41 +98,34 @@ export const Navigation: React.FC = () => {
         </svg>
       ),
     },
+    {
+      path: '/admin/users',
+      labelKey: 'nav.users',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ),
+    },
   ];
 
   return (
     <>
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed bottom-4 right-4 z-50 bg-primary-600 dark:bg-primary-500 text-white p-4 rounded-full shadow-lg focus:outline-none"
-      >
-        {isMobileMenuOpen ? (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        )}
-      </button>
-
       {/* Mobile menu backdrop */}
       {isMobileMenuOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-40"
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={onCloseMobileMenu}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — slides from right on mobile */}
       <aside
         className={`
-          fixed lg:sticky lg:top-[57px] top-0 left-0 z-40 h-screen lg:h-[calc(100vh-57px)]
-          w-64 flex-shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto
+          fixed lg:sticky lg:top-[57px] top-0 right-0 lg:right-auto lg:left-0 z-40 h-screen lg:h-[calc(100vh-57px)]
+          w-64 flex-shrink-0 bg-white dark:bg-gray-800 border-l lg:border-l-0 lg:border-r border-gray-200 dark:border-gray-700 overflow-y-auto
           transition-transform duration-300 ease-in-out
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         `}
       >
         <nav className="p-4 space-y-1">
@@ -136,7 +133,7 @@ export const Navigation: React.FC = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={onCloseMobileMenu}
               className={({ isActive }) =>
                 `flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
@@ -144,7 +141,7 @@ export const Navigation: React.FC = () => {
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`
               }
-              end={item.path === '/'}
+              end={item.path === '/admin/dashboard'}
             >
               {item.icon}
               <span>{t(item.labelKey)}</span>

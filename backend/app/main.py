@@ -2,8 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-from app.core.logging import logger
+from app.core.logging import logger, rotate_logs
+from app.core.config import settings
 from app.core.exceptions import AppException
+from app.core.backup import run_weekly_backup
 from app.db.session import SessionLocal
 from app.db.init_db import init_db
 from app.api.v1 import (
@@ -18,38 +20,86 @@ from app.api.v1 import (
     payments,
     notes,
     tags,
-    expenses
+    expenses,
+    users
 )
 import time
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting INACORTS application")
+    logger.info(f"Starting INACORTS application (environment={settings.ENVIRONMENT})")
     db = SessionLocal()
     try:
         init_db(db)
     finally:
         db.close()
+    # Run weekly database backup on startup
+    run_weekly_backup()
+    # Rotate logs: archive old active logs, delete expired backup logs
+    rotate_logs()
     yield
     logger.info("Shutting down INACORTS application")
 
 
+# ---------------------------------------------------------------------------
+# Conditionally disable Swagger UI / ReDoc / OpenAPI schema in production.
+# In development mode, /docs and /redoc remain available for local testing.
+# ---------------------------------------------------------------------------
+docs_url = "/docs" if not settings.is_production else None
+redoc_url = "/redoc" if not settings.is_production else None
+openapi_url = "/openapi.json" if not settings.is_production else None
+
 app = FastAPI(
     title="INACORTS",
     description="Inventory Accounting Customer Order Tracking System",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.2.0",
+    lifespan=lifespan,
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+    openapi_url=openapi_url,
 )
 
-# Configure CORS
+# ---------------------------------------------------------------------------
+# CORS — only origins listed in ALLOWED_ORIGINS are permitted.
+# In Docker production mode the only origin is the frontend container's
+# public URL (http://localhost:3000).
+# ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev server ports
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Trusted-host middleware.  In production, only requests arriving via the
+# Docker internal network (Host header = "backend" or "backend:8000") or
+# from the container itself (localhost) are accepted.  Everything else gets
+# a 403.  In development mode this middleware is a no-op (all hosts allowed).
+# ---------------------------------------------------------------------------
+# Hosts that are always trusted (container-internal healthcheck, etc.)
+_TRUSTED_HOSTS: set[str] = {
+    "localhost",
+    "localhost:8000",
+    "127.0.0.1",
+    "127.0.0.1:8000",
+    "backend",
+    "backend:8000",
+}
+
+
+@app.middleware("http")
+async def trusted_host_middleware(request: Request, call_next):
+    """Block requests from untrusted hosts in production."""
+    if settings.is_production:
+        host = request.headers.get("host", "").lower()
+        if host not in _TRUSTED_HOSTS:
+            logger.warning(f"Blocked request from untrusted host: {host} → {request.url.path}")
+            return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -93,11 +143,12 @@ def general_exception_handler(request: Request, exc: Exception):
 def root():
     return {
         "name": "INACORTS",
-        "version": "1.0.0",
+        "version": "1.2.0",
         "description": "Inventory Accounting Customer Order Tracking System"
     }
 
 
+# Healthcheck endpoint — always available (used by Docker HEALTHCHECK).
 @app.get("/health")
 def health():
     return {"status": "healthy"}
@@ -115,3 +166,4 @@ app.include_router(payments.router, prefix="/api/v1/payments", tags=["Payments"]
 app.include_router(notes.router, prefix="/api/v1/notes", tags=["Notes"])
 app.include_router(tags.router, prefix="/api/v1/tags", tags=["Tags"])
 app.include_router(expenses.router, prefix="/api/v1/expenses", tags=["Expenses"])
+app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])

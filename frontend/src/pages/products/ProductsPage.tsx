@@ -79,7 +79,7 @@ export const ProductsPage: React.FC = () => {
       setProducts(data.items);
       setTotalPages(data.total_pages);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load products');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +100,7 @@ export const ProductsPage: React.FC = () => {
       resetForm();
       loadProducts();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to create product'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -118,7 +118,7 @@ export const ProductsPage: React.FC = () => {
       resetForm();
       loadProducts();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to update product'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -131,7 +131,7 @@ export const ProductsPage: React.FC = () => {
       await productsApi.delete(id);
       loadProducts();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to delete product'));
+      alert(getErrorMessage(err, t('errors.deleteFailed')));
     }
   };
 
@@ -156,7 +156,7 @@ export const ProductsPage: React.FC = () => {
       setCategoryName('');
       await loadCategories();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to create category'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -168,7 +168,7 @@ export const ProductsPage: React.FC = () => {
       await categoriesApi.delete(categoryId);
       await loadCategories();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to delete category'));
+      alert(getErrorMessage(err, t('errors.deleteFailed')));
     }
   };
 
@@ -313,7 +313,7 @@ export const ProductsPage: React.FC = () => {
             </div>
           ) : (
             <>
-              <Table columns={columns} data={products} onRowClick={(p) => navigate(`/products/${p.id}`)} />
+              <Table columns={columns} data={products} onRowClick={(p) => navigate(`/admin/products/${p.id}`)} />
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </>
           )}

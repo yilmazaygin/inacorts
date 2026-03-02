@@ -81,7 +81,7 @@ export const OrdersPage: React.FC = () => {
       setOrders(data.items);
       setTotalPages(data.total_pages);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load orders');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -122,9 +122,9 @@ export const OrdersPage: React.FC = () => {
       setShowCreateModal(false);
       resetForm();
       // Navigate directly to the newly created order
-      navigate(`/orders/${createdOrder.id}`);
+      navigate(`/admin/orders/${createdOrder.id}`);
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to create order'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -302,7 +302,7 @@ export const OrdersPage: React.FC = () => {
               <Table
                 columns={columns}
                 data={orders}
-                onRowClick={(order) => navigate(`/orders/${order.id}`)}
+                onRowClick={(order) => navigate(`/admin/orders/${order.id}`)}
               />
               <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
             </>

@@ -39,7 +39,7 @@ export const CategoriesPage: React.FC = () => {
       setCategories(data.items);
       setTotalPages(data.total_pages);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load categories');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -58,7 +58,7 @@ export const CategoriesPage: React.FC = () => {
       resetForm();
       loadCategories();
     } catch (err: any) {
-      alert(getErrorMessage(err, `Failed to ${isEditing ? 'update' : 'create'} category`));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -71,7 +71,7 @@ export const CategoriesPage: React.FC = () => {
       await categoriesApi.delete(id);
       loadCategories();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to delete category'));
+      alert(getErrorMessage(err, t('errors.deleteFailed')));
     }
   };
 

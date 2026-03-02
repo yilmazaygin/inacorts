@@ -61,7 +61,7 @@ export const DashboardPage: React.FC = () => {
 
       setRecentOrders(ordersData.items);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load dashboard data');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +182,7 @@ export const DashboardPage: React.FC = () => {
               recentOrders.map((order) => (
                 <div
                   key={order.id}
-                  onClick={() => navigate(`/orders/${order.id}`)}
+                  onClick={() => navigate(`/admin/orders/${order.id}`)}
                   className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750/50 cursor-pointer transition-colors"
                 >
                   {/* Mobile-first layout: stack on small screens, side-by-side on larger */}
@@ -216,7 +216,7 @@ export const DashboardPage: React.FC = () => {
           {recentOrders.length > 0 && (
             <div className="mt-4">
               <button
-                onClick={() => navigate('/orders')}
+                onClick={() => navigate('/admin/orders')}
                 className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium text-sm"
               >
                 {t('dashboard.viewAllOrders')} →

@@ -4,7 +4,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 
 // Pages
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/auth/LoginPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { CustomersPage } from './pages/customers/CustomersPage';
 import { CustomerDetailPage } from './pages/customers/CustomerDetailPage';
@@ -19,8 +21,10 @@ import { PaymentsPage } from './pages/payments/PaymentsPage';
 import { StockPage } from './pages/stock/StockPage';
 import { ExpensesPage } from './pages/expenses/ExpensesPage';
 import { FinancialsPage } from './pages/financials/FinancialsPage';
+import { UsersPage } from './pages/users/UsersPage';
+import { MyAccountPage } from './pages/users/MyAccountPage';
 
-// Protected Route Component
+// Protected Route Component – redirects unauthenticated users to /admin/login
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -33,14 +37,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/admin/login" replace />;
   }
 
   return <>{children}</>;
 };
 
-// Public Route Component (redirect if already authenticated)
-const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Admin Public Route Component – redirect already-authenticated users to /admin/dashboard
+const AdminPublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -52,7 +56,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -63,19 +67,41 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public Routes */}
+          {/* Public Landing Page – no auth required */}
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Admin sub-application routes */}
+          {/* Admin root redirects to dashboard (protected) */}
           <Route
-            path="/login"
+            path="/admin"
             element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
+              <ProtectedRoute>
+                <Navigate to="/admin/dashboard" replace />
+              </ProtectedRoute>
             }
           />
 
-          {/* Protected Routes */}
+          {/* Admin public routes (login, forgot-password) */}
           <Route
-            path="/"
+            path="/admin/login"
+            element={
+              <AdminPublicRoute>
+                <LoginPage />
+              </AdminPublicRoute>
+            }
+          />
+          <Route
+            path="/admin/forgot-password"
+            element={
+              <AdminPublicRoute>
+                <ForgotPasswordPage />
+              </AdminPublicRoute>
+            }
+          />
+
+          {/* Admin protected routes */}
+          <Route
+            path="/admin/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardPage />
@@ -83,7 +109,7 @@ function App() {
             }
           />
           <Route
-            path="/customers"
+            path="/admin/customers"
             element={
               <ProtectedRoute>
                 <CustomersPage />
@@ -91,7 +117,7 @@ function App() {
             }
           />
           <Route
-            path="/customers/:id"
+            path="/admin/customers/:id"
             element={
               <ProtectedRoute>
                 <CustomerDetailPage />
@@ -99,7 +125,7 @@ function App() {
             }
           />
           <Route
-            path="/contacts"
+            path="/admin/contacts"
             element={
               <ProtectedRoute>
                 <ContactsPage />
@@ -107,7 +133,7 @@ function App() {
             }
           />
           <Route
-            path="/contacts/:id"
+            path="/admin/contacts/:id"
             element={
               <ProtectedRoute>
                 <ContactDetailPage />
@@ -115,7 +141,7 @@ function App() {
             }
           />
           <Route
-            path="/products"
+            path="/admin/products"
             element={
               <ProtectedRoute>
                 <ProductsPage />
@@ -123,7 +149,7 @@ function App() {
             }
           />
           <Route
-            path="/products/:id"
+            path="/admin/products/:id"
             element={
               <ProtectedRoute>
                 <ProductDetailPage />
@@ -131,7 +157,7 @@ function App() {
             }
           />
           <Route
-            path="/orders"
+            path="/admin/orders"
             element={
               <ProtectedRoute>
                 <OrdersPage />
@@ -139,7 +165,7 @@ function App() {
             }
           />
           <Route
-            path="/orders/:id"
+            path="/admin/orders/:id"
             element={
               <ProtectedRoute>
                 <OrderDetailPage />
@@ -147,7 +173,7 @@ function App() {
             }
           />
           <Route
-            path="/payments"
+            path="/admin/payments"
             element={
               <ProtectedRoute>
                 <PaymentsPage />
@@ -155,7 +181,7 @@ function App() {
             }
           />
           <Route
-            path="/stock"
+            path="/admin/stock"
             element={
               <ProtectedRoute>
                 <StockPage />
@@ -163,7 +189,7 @@ function App() {
             }
           />
           <Route
-            path="/expenses"
+            path="/admin/expenses"
             element={
               <ProtectedRoute>
                 <ExpensesPage />
@@ -171,15 +197,38 @@ function App() {
             }
           />
           <Route
-            path="/financials"
+            path="/admin/financials"
             element={
               <ProtectedRoute>
                 <FinancialsPage />
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/my-account"
+            element={
+              <ProtectedRoute>
+                <MyAccountPage />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Catch all - redirect to dashboard */}
+          {/* Backward compatibility: old /login redirects to /admin/login */}
+          <Route path="/login" element={<Navigate to="/admin/login" replace />} />
+          <Route path="/forgot-password" element={<Navigate to="/admin/forgot-password" replace />} />
+
+          {/* Catch all unknown routes under /admin → redirect to /admin/dashboard */}
+          <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />
+
+          {/* Catch all other unknown routes → redirect to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

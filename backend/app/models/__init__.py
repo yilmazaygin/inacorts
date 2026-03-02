@@ -10,9 +10,27 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(100), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=True, index=True)
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    deactivated_at = Column(DateTime, nullable=True)
+    # Profile fields
+    name = Column(String(255), nullable=True)
+    surname = Column(String(255), nullable=True)
+    address = Column(Text, nullable=True)
+    backup_email = Column(String(255), nullable=True)
+    phone_number = Column(String(50), nullable=True)
+    # Security questions
+    security_question_1 = Column(String(500), nullable=True)
+    security_answer_1_hash = Column(String(255), nullable=True)
+    security_question_2 = Column(String(500), nullable=True)
+    security_answer_2_hash = Column(String(255), nullable=True)
+    
+    created_by_user = relationship("User", remote_side=[id], foreign_keys=[created_by])
 
 
 customer_contact_association = Table(

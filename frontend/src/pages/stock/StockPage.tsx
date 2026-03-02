@@ -66,7 +66,7 @@ export const StockPage: React.FC = () => {
       setMovements(data.items);
       setTotalPages(data.total_pages);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load stock movements');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +82,7 @@ export const StockPage: React.FC = () => {
       loadMovements();
       loadProducts();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to create stock movement'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -141,7 +141,7 @@ export const StockPage: React.FC = () => {
         <span className="text-sm text-gray-700 dark:text-gray-300">
           {t('stock.deliveredForOrder')}{' '}
           <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/orders/${orderId}`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${orderId}`); }}
             className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
           >
             #{orderId}
@@ -158,7 +158,7 @@ export const StockPage: React.FC = () => {
         <span className="text-sm text-gray-700 dark:text-gray-300">
           {t('stock.canceledOrderReturn')}{' '}
           <button
-            onClick={(e) => { e.stopPropagation(); navigate(`/orders/${orderId}`); }}
+            onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${orderId}`); }}
             className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
           >
             #{orderId}

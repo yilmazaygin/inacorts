@@ -1,7 +1,10 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type { ApiError } from '@/types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// When VITE_API_BASE_URL is not set, defaults to '' (same-origin).
+// This allows both the Vite dev proxy and the Nginx Docker proxy to work
+// transparently.  Set VITE_API_BASE_URL explicitly in .env to bypass proxying.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 // Create axios instance
 export const apiClient = axios.create({
@@ -59,7 +62,7 @@ apiClient.interceptors.response.use(
         // Refresh failed, clear tokens and redirect to login
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        window.location.href = '/admin/login';
         return Promise.reject(refreshError);
       }
     }

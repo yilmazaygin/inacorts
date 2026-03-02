@@ -74,7 +74,7 @@ export const OrderDetailPage: React.FC = () => {
         method: PaymentMethod.CASH,
       });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load order data');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +88,7 @@ export const OrderDetailPage: React.FC = () => {
       setShowPaymentModal(false);
       await loadOrderData();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to add payment'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -106,7 +106,7 @@ export const OrderDetailPage: React.FC = () => {
       setDeliveryQuantity(0);
       await loadOrderData();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to deliver items'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSubmitting(false);
     }
@@ -119,7 +119,7 @@ export const OrderDetailPage: React.FC = () => {
       await ordersApi.cancel(parseInt(id!));
       await loadOrderData();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to cancel order'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     }
   };
 
@@ -176,7 +176,7 @@ export const OrderDetailPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate('/orders')}>
+            <Button variant="ghost" onClick={() => navigate('/admin/orders')}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>

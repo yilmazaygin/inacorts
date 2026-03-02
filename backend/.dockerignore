@@ -1,0 +1,48 @@
+# Backend .dockerignore
+# Excludes files that should not be copied into the Docker image.
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+
+# Logs (persisted via Docker volume, not baked into the image)
+logs/
+
+# Database files (persisted via Docker volume)
+../database/
+
+# Environment files with secrets (injected via docker-compose environment)
+.env
+.env.local
+.env.*.local
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitkeep
+
+# Docker (prevent recursive copy)
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md

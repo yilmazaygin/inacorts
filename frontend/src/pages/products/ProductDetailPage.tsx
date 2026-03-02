@@ -60,7 +60,7 @@ export const ProductDetailPage: React.FC = () => {
         list_price: productData.list_price,
       });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load product data');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +76,7 @@ export const ProductDetailPage: React.FC = () => {
       setIsEditing(false);
       await loadProductData();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to update product'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSaving(false);
     }
@@ -86,9 +86,9 @@ export const ProductDetailPage: React.FC = () => {
     if (!confirm(t('common.confirmDelete'))) return;
     try {
       await productsApi.delete(product!.id);
-      navigate('/products');
+      navigate('/admin/products');
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to delete product'));
+      alert(getErrorMessage(err, t('errors.deleteFailed')));
     }
   };
 
@@ -141,7 +141,7 @@ export const ProductDetailPage: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate('/products')}>
+            <Button variant="ghost" onClick={() => navigate('/admin/products')}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>

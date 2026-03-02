@@ -1,0 +1,102 @@
+# =============================================================================
+# INACORTS — Docker Compose
+# =============================================================================
+# Single-command deployment:  docker compose up --build
+#
+# Services:
+#   backend   — FastAPI + Uvicorn (internal only, NOT exposed to the host)
+#   frontend  — React production build served by Nginx on port 3000
+#
+# Security:
+#   • Backend has NO published ports — only reachable via the Docker network.
+#   • Nginx proxies /api requests to backend:8000 on the internal network.
+#   • Swagger UI (/docs, /redoc) is disabled in production (ENVIRONMENT=production).
+#   • Trusted-host middleware rejects requests from unknown Host headers.
+#
+# Volumes (persistent across rebuilds and version updates):
+#   inacorts_database  — SQLite database file + weekly backups
+#   inacorts_logs      — Active logs (7 days) + archived logs (14 days)
+#
+# Network:
+#   inacorts-net       — Isolated bridge network for inter-service communication
+# =============================================================================
+
+services:
+  # ── Backend (FastAPI + Uvicorn) ───────────────────────────────────────────
+  # The backend is NOT exposed to the host.  All external traffic reaches it
+  # only through the Nginx reverse proxy in the frontend container.
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: inacorts-backend
+    restart: unless-stopped
+    # No "ports:" section — the backend is internal-only.
+    # To temporarily expose for debugging, uncomment the line below:
+    # ports:
+    #   - "8000:8000"
+    expose:
+      - "8000"   # visible only to other containers on the same Docker network
+    environment:
+      # ── Runtime mode ──────────────────────────────────────────────────
+      # "production" disables Swagger UI and enables trusted-host checks.
+      # Set to "development" to re-enable /docs and /redoc.
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      # ── Database ──────────────────────────────────────────────────────
+      - DATABASE_URL=sqlite:////database/inacorts.db
+      # ── Auth ──────────────────────────────────────────────────────────
+      - SECRET_KEY=${SECRET_KEY:-change-me-generate-a-real-secret-key}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      # ── Logging ───────────────────────────────────────────────────────
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # ── CORS ──────────────────────────────────────────────────────────
+      # Only the frontend origin is allowed.  Adjust if you use a custom domain.
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+    volumes:
+      - inacorts_database:/database
+      - inacorts_logs:/app/logs
+    networks:
+      - inacorts-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+  # ── Frontend (React + Nginx) ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: inacorts-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - inacorts-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+# ── Network ─────────────────────────────────────────────────────────────────
+networks:
+  inacorts-net:
+    driver: bridge
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
+# Named volumes are managed by Docker and persist across container rebuilds,
+# image updates, and `docker compose down` (they are only removed with
+# `docker compose down -v` or `docker volume rm`).
+volumes:
+  inacorts_database:
+    driver: local
+  inacorts_logs:
+    driver: local

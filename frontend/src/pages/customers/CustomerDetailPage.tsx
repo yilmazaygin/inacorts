@@ -61,7 +61,7 @@ export const CustomerDetailPage: React.FC = () => {
         website: customerData.website,
       });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load customer data');
+      setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +75,7 @@ export const CustomerDetailPage: React.FC = () => {
       await loadCustomerData();
       setIsEditing(false);
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to update customer'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsSaving(false);
     }
@@ -102,7 +102,7 @@ export const CustomerDetailPage: React.FC = () => {
       setShowContactModal(false);
       await loadCustomerData();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to add contact'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsContactSaving(false);
     }
@@ -118,7 +118,7 @@ export const CustomerDetailPage: React.FC = () => {
       });
       await loadCustomerData();
     } catch (err: any) {
-      alert(getErrorMessage(err, 'Failed to remove contact'));
+      alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsContactSaving(false);
     }
@@ -158,7 +158,7 @@ export const CustomerDetailPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate('/customers')}>
+            <Button variant="ghost" onClick={() => navigate('/admin/customers')}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
@@ -263,7 +263,7 @@ export const CustomerDetailPage: React.FC = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div
                           className="min-w-0 flex-1 cursor-pointer"
-                          onClick={() => navigate(`/contacts/${contact.id}`)}
+                          onClick={() => navigate(`/admin/contacts/${contact.id}`)}
                         >
                           <h4 className="font-medium text-gray-900 dark:text-gray-100">{contact.name}</h4>
                           <div className="mt-1 space-y-1">
@@ -318,7 +318,7 @@ export const CustomerDetailPage: React.FC = () => {
                   {orders.map((order) => (
                     <div
                       key={order.id}
-                      onClick={() => navigate(`/orders/${order.id}`)}
+                      onClick={() => navigate(`/admin/orders/${order.id}`)}
                       className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750/50 cursor-pointer"
                     >
                       <div className="flex justify-between items-start">
