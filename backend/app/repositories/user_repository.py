@@ -22,12 +22,14 @@ class UserRepository:
                email: Optional[str] = None, created_by: Optional[int] = None,
                name: Optional[str] = None, surname: Optional[str] = None,
                address: Optional[str] = None, backup_email: Optional[str] = None,
-               phone_number: Optional[str] = None) -> User:
+               phone_number: Optional[str] = None,
+               is_sales_consultant: bool = False) -> User:
         user = User(
             username=username,
             hashed_password=hashed_password,
             email=email,
             is_admin=is_admin,
+            is_sales_consultant=is_sales_consultant,
             is_active=True,
             created_by=created_by,
             name=name,

@@ -6,7 +6,8 @@
 #
 # Paths inside the container:
 #   /app/           — Backend application code (WORKDIR)
-#   /database/      — SQLite database + weekly backups (Docker volume)
+#   /database/      — SQLite database (Docker volume)
+#   /uploads/       — Product images (Docker volume)
 #   /app/logs/      — Active logs (7 days) + archived logs (14 days) (Docker volume)
 # =============================================================================
 
@@ -39,7 +40,7 @@ COPY . .
 # Create directories that will be overlaid by volume mounts on first run.
 # Docker volumes preserve existing content only on first mount, so these
 # ensure the directory tree exists even without volumes.
-RUN mkdir -p /database/backups logs/backups
+RUN mkdir -p /database /uploads logs/backups
 
 # Expose the API port
 EXPOSE 8000

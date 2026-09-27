@@ -8,8 +8,12 @@ from app.schemas.user import (
 from app.schemas.common import PaginatedResponse
 from app.core.security import hash_password, verify_password
 from app.core.exceptions import NotFoundException, BadRequestException, ForbiddenException
+from app.utils.product_images import delete_user_photo, save_user_photo, user_photo_url
 from math import ceil
 from loguru import logger
+
+
+LOCKED_CONSULTANT_USERNAMES = {"admin", "system"}
 
 
 class UserService:
@@ -27,6 +31,7 @@ class UserService:
         # Include security question text (never answers)
         response.security_question_1 = user.security_question_1
         response.security_question_2 = user.security_question_2
+        response.photo_url = user_photo_url(user.photo_filename)
         return response
     
     def get_user(self, user_id: int) -> UserResponse:
@@ -63,12 +68,14 @@ class UserService:
             if existing_email:
                 raise BadRequestException("Email already exists")
         
+        self._guard_consultant(data.username, data.is_sales_consultant)
         logger.info(f"Creating user: {data.username} (by user {created_by_user_id})")
         hashed_pw = hash_password(data.password)
         user = self.repo.create(
             username=data.username,
             hashed_password=hashed_pw,
             is_admin=data.is_admin,
+            is_sales_consultant=data.is_sales_consultant,
             email=data.email,
             created_by=created_by_user_id,
             name=data.name,
@@ -90,6 +97,8 @@ class UserService:
             existing_email = self.repo.get_by_email(update_data["email"])
             if existing_email and existing_email.id != user_id:
                 raise BadRequestException("Email already exists")
+        if "is_sales_consultant" in update_data:
+            self._guard_consultant(user.username, bool(update_data["is_sales_consultant"]))
         
         user = self.repo.update(user, **update_data)
         logger.info(f"User updated - ID: {user.id}, Username: {user.username}")
@@ -111,6 +120,33 @@ class UserService:
         logger.info(f"User profile updated - ID: {user.id}, Username: {user.username}")
         return self._build_response(user)
     
+    def set_photo(self, user_id: int, data: bytes) -> UserResponse:
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundException("User not found")
+        previous = user.photo_filename
+        user.photo_filename = save_user_photo(user.id, data)
+        self.db.commit()
+        self.db.refresh(user)
+        if previous and previous != user.photo_filename:
+            delete_user_photo(previous)
+        return self._build_response(user)
+
+    def clear_photo(self, user_id: int) -> UserResponse:
+        user = self.repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundException("User not found")
+        previous = user.photo_filename
+        user.photo_filename = None
+        self.db.commit()
+        self.db.refresh(user)
+        delete_user_photo(previous)
+        return self._build_response(user)
+
+    def _guard_consultant(self, username: str, enabled: bool) -> None:
+        if enabled and username in LOCKED_CONSULTANT_USERNAMES:
+            raise BadRequestException("This account cannot be a sales consultant")
+
     def deactivate_user(self, user_id: int, current_user_id: int) -> UserResponse:
         user = self.repo.get_by_id(user_id)
         if not user:

@@ -12,11 +12,13 @@ import { customersApi } from '@/api/customers';
 import { paymentsApi } from '@/api/payments';
 import { expensesApi } from '@/api/expenses';
 import { formatCurrency, formatCompactCurrency, formatDate } from '@/utils/format';
+import { useBrand } from '@/contexts/BrandContext';
 import { Order } from '@/types/entities';
 import { OrderStatus, PaymentStatus, DeliveryStatus } from '@/types/enums';
 
 export const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
+  const brand = useBrand();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,7 +103,7 @@ export const DashboardPage: React.FC = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('dashboard.title')}</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">{t('dashboard.welcome')}</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">{t('dashboard.welcome', { brand })}</p>
         </div>
 
         {error && <ErrorMessage message={error} onRetry={loadDashboardData} />}

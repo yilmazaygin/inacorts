@@ -324,7 +324,7 @@ export const FinancialsPage: React.FC = () => {
             {/* Category-based Expense Breakdown */}
             {categoryBreakdown.length > 0 && (
               <Card title={t('financials.categoryBreakdown')}>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-hidden">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead>
                       <tr>

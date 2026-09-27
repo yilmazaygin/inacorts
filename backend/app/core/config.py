@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+# backend/app/core/config.py → backend/
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -15,6 +20,13 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed CORS origins.
     # In Docker production mode this is set automatically by docker-compose.
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+
+    # Local directory for uploaded files. Overridden to /uploads in Docker.
+    UPLOAD_DIR: str = str(_BACKEND_DIR / "uploads")
+    MAX_PRODUCT_IMAGE_BYTES: int = 5 * 1024 * 1024
+
+    # When true, and the product table is empty, load the local demo catalogue.
+    SEED_DEMO_PRODUCTS: bool = False
 
     class Config:
         env_file = ".env"

@@ -30,4 +30,30 @@ export const productsApi = {
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/v1/products/${id}`);
   },
+
+  uploadImage: async (id: number, file: File): Promise<Product> => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.post<Product>(`/api/v1/products/${id}/image`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteImage: async (id: number, filename?: string): Promise<Product> => {
+    const response = await apiClient.delete<Product>(`/api/v1/products/${id}/image`, {
+      params: filename ? { filename } : undefined,
+    });
+    return response.data;
+  },
+
+  saveImages: async (id: number, files: File[], removedUrls: string[]): Promise<void> => {
+    for (const url of removedUrls) {
+      const filename = decodeURIComponent(url.split('?')[0].split('/').pop() || '');
+      if (filename) await productsApi.deleteImage(id, filename);
+    }
+    for (const file of files) {
+      await productsApi.uploadImage(id, file);
+    }
+  },
 };

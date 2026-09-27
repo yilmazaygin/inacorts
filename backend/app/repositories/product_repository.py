@@ -33,7 +33,6 @@ class ProductRepository:
                 or_(
                     Product.name.ilike(f"%{search}%"),
                     Product.description.ilike(f"%{search}%"),
-                    Product.barcode.ilike(f"%{search}%")
                 )
             )
         

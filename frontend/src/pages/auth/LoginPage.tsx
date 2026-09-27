@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBrand } from '@/contexts/BrandContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -15,6 +16,7 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const brand = useBrand();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,7 +87,7 @@ export const LoginPage: React.FC = () => {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('auth.systemTitle')}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{brand}</h1>
           <p className="text-gray-600 dark:text-gray-400">{t('auth.systemDescription')}</p>
         </div>
 

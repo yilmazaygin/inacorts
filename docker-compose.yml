@@ -14,7 +14,8 @@
 #   • Trusted-host middleware rejects requests from unknown Host headers.
 #
 # Volumes (persistent across rebuilds and version updates):
-#   inacorts_database  — SQLite database file + weekly backups
+#   inacorts_database  — SQLite database file
+#   inacorts_uploads   — Product images stored on local disk
 #   inacorts_logs      — Active logs (7 days) + archived logs (14 days)
 #
 # Network:
@@ -53,8 +54,13 @@ services:
       # ── CORS ──────────────────────────────────────────────────────────
       # Only the frontend origin is allowed.  Adjust if you use a custom domain.
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      # Product images are written under /uploads inside the container.
+      - UPLOAD_DIR=/uploads
+      # Set SEED_DEMO_PRODUCTS=true only on a local empty database.
+      - SEED_DEMO_PRODUCTS=${SEED_DEMO_PRODUCTS:-false}
     volumes:
       - inacorts_database:/database
+      - inacorts_uploads:/uploads
       - inacorts_logs:/app/logs
     networks:
       - inacorts-net
@@ -97,6 +103,8 @@ networks:
 # `docker compose down -v` or `docker volume rm`).
 volumes:
   inacorts_database:
+    driver: local
+  inacorts_uploads:
     driver: local
   inacorts_logs:
     driver: local

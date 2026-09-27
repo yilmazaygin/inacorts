@@ -20,7 +20,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           isMobileMenuOpen={isMobileMenuOpen}
           onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
         />
-        <main className="flex-1 min-w-0 p-4 lg:p-6 overflow-y-auto">
+        <main className="flex-1 min-w-0 p-4 lg:p-6">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

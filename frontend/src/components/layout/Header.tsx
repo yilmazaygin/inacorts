@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useBrand } from '@/contexts/BrandContext';
 
 interface HeaderProps {
   isMobileMenuOpen: boolean;
@@ -13,6 +14,7 @@ export const Header: React.FC<HeaderProps> = ({ isMobileMenuOpen, onToggleMobile
   const { logout, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
+  const brand = useBrand();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -35,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({ isMobileMenuOpen, onToggleMobile
               onClick={() => navigate('/admin/dashboard')}
               className="text-xl font-bold text-primary-600 dark:text-primary-400"
             >
-              INACORTS
+              {brand}
             </button>
           </div>
 

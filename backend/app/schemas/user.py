@@ -11,6 +11,7 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=72)
     email: Optional[str] = None
     is_admin: bool = False
+    is_sales_consultant: bool = False
     name: Optional[str] = None
     surname: Optional[str] = None
     address: Optional[str] = None
@@ -21,6 +22,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     email: Optional[str] = None
     is_admin: Optional[bool] = None
+    is_sales_consultant: Optional[bool] = None
     name: Optional[str] = None
     surname: Optional[str] = None
     address: Optional[str] = None
@@ -42,6 +44,7 @@ class UserResponse(UserBase):
     id: int
     email: Optional[str] = None
     is_admin: bool
+    is_sales_consultant: bool = False
     is_active: bool
     created_by: Optional[int] = None
     created_by_username: Optional[str] = None
@@ -53,6 +56,7 @@ class UserResponse(UserBase):
     address: Optional[str] = None
     backup_email: Optional[str] = None
     phone_number: Optional[str] = None
+    photo_url: Optional[str] = None
     security_question_1: Optional[str] = None
     security_question_2: Optional[str] = None
     has_security_questions: bool = False

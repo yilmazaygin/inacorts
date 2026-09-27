@@ -155,7 +155,7 @@ Request → FastAPI Router (api/v1/) → Service → Repository → SQLAlchemy M
 | `Customer` | Company / individual customers |
 | `Contact` | Contact people (M2M with customers) |
 | `Category` | Product categories |
-| `Product` | Product catalogue (name, barcode, price, stock) |
+| `Product` | Product catalogue (name, price, stock, local image) |
 | `StockMovement` | IN / OUT / ADJUSTMENT stock changes |
 | `Order` | Customer orders with status tracking |
 | `OrderItem` | Line items within an order |

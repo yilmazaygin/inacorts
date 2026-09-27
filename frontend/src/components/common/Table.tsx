@@ -24,7 +24,7 @@ export function Table<T extends { id: number }>({
   const { t } = useTranslation();
   const resolvedEmptyMessage = emptyMessage || t('common.noData');
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto overflow-y-hidden">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>

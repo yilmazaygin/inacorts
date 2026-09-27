@@ -51,6 +51,9 @@ database/backups/*.sqlite3
 !database/.gitkeep
 !database/backups/.gitkeep
 
+# Uploaded files (product images) — stored locally, not in git
+backend/uploads/
+
 # Logs — ignore log files but keep directory structure
 logs/
 backend/logs/

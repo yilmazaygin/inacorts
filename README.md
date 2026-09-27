@@ -32,7 +32,7 @@ and is released as **free software** under the GNU General Public License v3.0 o
 | **Dashboard** | Revenue, expense, and order KPIs at a glance |
 | **Customers** | Customer profiles with contacts, notes, and tags |
 | **Contacts** | Shared contact directory linked to customers (M2M) |
-| **Products** | Product catalogue with categories, pricing, and barcode |
+| **Products** | Product catalogue with categories, pricing, and local images |
 | **Inventory** | Real-time stock levels; IN / OUT / ADJUSTMENT movements |
 | **Orders** | Full order lifecycle — items, deliveries, payments, status |
 | **Payments** | Cash, bank transfer, credit card tracking per order |
@@ -45,7 +45,6 @@ and is released as **free software** under the GNU General Public License v3.0 o
 | **Dark Mode** | System-aware dark / light theme toggle |
 | **Landing Page** | Public welcome page with login link |
 | **Logging** | Tiered log retention — 7-day active, 14-day archived |
-| **Backups** | Automatic weekly SQLite backups (single-rotation) |
 | **Docker** | Single-command deployment with persistent volumes |
 | **Security** | Backend network-isolated; Swagger disabled in production |
 
@@ -85,7 +84,7 @@ inacorts/
 │   ├── Dockerfile         # Python 3.11 + Uvicorn
 │   ├── app/
 │   │   ├── api/v1/        # Route handlers (13 modules)
-│   │   ├── core/          # Config, security, JWT, logging, backup
+│   │   ├── core/          # Config, security, JWT, logging
 │   │   ├── db/            # Engine, session, init_db
 │   │   ├── models/        # SQLAlchemy models (17 entities)
 │   │   ├── repositories/  # Data-access layer
@@ -108,7 +107,7 @@ inacorts/
 │   │   └── utils/         # Formatting helpers
 │   ├── package.json
 │   └── .env.example
-├── database/              # SQLite DB + weekly backups (gitignored)
+├── database/              # SQLite DB (gitignored)
 ├── docker-compose.yml     # Single-command deployment
 ├── CHANGELOG.md
 └── README.md              ← you are here
@@ -178,7 +177,8 @@ Docker volumes keep data safe across restarts and image rebuilds:
 
 | Volume | Container path | Contents |
 | --- | --- | --- |
-| `inacorts_database` | `/database/` | SQLite DB + weekly backups |
+| `inacorts_database` | `/database/` | SQLite database |
+| `inacorts_uploads` | `/uploads/` | Product images |
 | `inacorts_logs` | `/app/logs/` | Active logs (7 d) + archived logs (14 d) |
 
 > Volumes survive `docker compose down`. Only `docker compose down -v` removes them.

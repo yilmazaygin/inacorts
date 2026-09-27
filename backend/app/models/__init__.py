@@ -13,6 +13,7 @@ class User(Base):
     email = Column(String(255), nullable=True, index=True)
     hashed_password = Column(String(255), nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
+    is_sales_consultant = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -24,6 +25,7 @@ class User(Base):
     address = Column(Text, nullable=True)
     backup_email = Column(String(255), nullable=True)
     phone_number = Column(String(50), nullable=True)
+    photo_filename = Column(String(255), nullable=True)
     # Security questions
     security_question_1 = Column(String(500), nullable=True)
     security_answer_1_hash = Column(String(255), nullable=True)
@@ -132,6 +134,7 @@ class Category(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    image_filename = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -147,7 +150,8 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    barcode = Column(String(100), nullable=True, index=True)
+    image_filename = Column(String(255), nullable=True)
+    image_filenames = Column(Text, nullable=True)
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
     list_price = Column(Float, default=0.0, nullable=False)
     current_stock = Column(Integer, default=0, nullable=False)
@@ -341,3 +345,34 @@ class ExpenseHistory(Base):
     
     expense = relationship("Expense", back_populates="history")
     changed_by_user = relationship("User", foreign_keys=[changed_by])
+
+
+class SiteSettings(Base):
+    """Single-row store for the public website copy (Turkish and English)."""
+    __tablename__ = "site_settings"
+
+    id = Column(Integer, primary_key=True)
+    data = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+class UserAgreement(Base):
+    """Public user agreement, edited from the admin panel."""
+    __tablename__ = "user_agreement"
+
+    id = Column(Integer, primary_key=True)
+    body_tr = Column(Text, nullable=False)
+    body_en = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+class UserAgreementLog(Base):
+    """Who changed the user agreement, and when."""
+    __tablename__ = "user_agreement_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(255), nullable=False)
+    edited_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    edited_at = Column(DateTime, default=datetime.utcnow, nullable=False)

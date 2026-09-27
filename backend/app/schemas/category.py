@@ -17,6 +17,7 @@ class CategoryUpdate(BaseModel):
 
 class CategoryResponse(CategoryBase):
     id: int
+    image_url: Optional[str] = None
     created_at: datetime
     created_by: int
     updated_at: datetime

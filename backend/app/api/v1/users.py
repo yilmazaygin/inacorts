@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
@@ -9,7 +9,7 @@ from app.schemas.user import (
 )
 from app.schemas.common import PaginatedResponse
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
-from app.core.exceptions import ForbiddenException
+from app.core.exceptions import BadRequestException, ForbiddenException
 
 router = APIRouter()
 
@@ -72,6 +72,26 @@ def get_user(user_id: int, current_user: CurrentUser, db: DatabaseSession):
     _require_admin(current_user)
     user_service = UserService(db)
     return user_service.get_user(user_id)
+
+
+@router.post("/{user_id}/photo", response_model=UserResponse)
+def upload_user_photo(
+    user_id: int,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    file: UploadFile = File(...),
+):
+    _require_admin(current_user)
+    data = file.file.read(5 * 1024 * 1024 + 1)
+    if not data:
+        raise BadRequestException("Empty file")
+    return UserService(db).set_photo(user_id, data)
+
+
+@router.delete("/{user_id}/photo", response_model=UserResponse)
+def delete_user_photo(user_id: int, current_user: CurrentUser, db: DatabaseSession):
+    _require_admin(current_user)
+    return UserService(db).clear_photo(user_id)
 
 
 @router.put("/{user_id}", response_model=UserResponse)

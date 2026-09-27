@@ -38,6 +38,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
     // Persist to localStorage
     localStorage.setItem('theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#020617' : '#fafaf9');
   }, [theme]);
 
   const toggleTheme = () => {

@@ -1,10 +1,20 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
+import { BrandProvider } from './contexts/BrandContext';
+import { SiteMeta } from './components/site/SiteMeta';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
+import { CatalogPage } from './pages/site/CatalogPage';
+import { CartPage } from './pages/site/CartPage';
+import { SiteSettingsPage } from './pages/settings/SiteSettingsPage';
+import { SalesSettingsPage } from './pages/settings/SalesSettingsPage';
+import { UserAgreementPage } from './pages/settings/UserAgreementPage';
+import { AgreementPage } from './pages/site/AgreementPage';
+import { HowToOrderPage } from './pages/site/HowToOrderPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
@@ -66,9 +76,16 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <CartProvider>
+        <BrandProvider>
+        <SiteMeta />
         <Routes>
           {/* Public Landing Page – no auth required */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/urunler" element={<CatalogPage />} />
+          <Route path="/sepet" element={<CartPage />} />
+          <Route path="/sozlesme" element={<AgreementPage />} />
+          <Route path="/nasil-siparis" element={<HowToOrderPage />} />
 
           {/* Admin sub-application routes */}
           {/* Admin root redirects to dashboard (protected) */}
@@ -213,6 +230,30 @@ function App() {
             }
           />
           <Route
+            path="/admin/sales-settings"
+            element={
+              <ProtectedRoute>
+                <SalesSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/site-settings"
+            element={
+              <ProtectedRoute>
+                <SiteSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sozlesme"
+            element={
+              <ProtectedRoute>
+                <UserAgreementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/my-account"
             element={
               <ProtectedRoute>
@@ -231,6 +272,8 @@ function App() {
           {/* Catch all other unknown routes → redirect to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </BrandProvider>
+        </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   );

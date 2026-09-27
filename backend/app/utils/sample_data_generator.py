@@ -367,10 +367,8 @@ def create_products(db: Session, cats: List[Category], uid: int) -> List[Product
 
     products: List[Product] = []
     for name, desc, price, ci in product_defs:
-        barcode = f"869{random.randint(1000000000, 9999999999)}" if random.random() > 0.25 else None
         p = Product(
             name=name, description=desc,
-            barcode=barcode,
             category_id=cats[ci].id, list_price=price,
             current_stock=0,
             created_by=uid, updated_by=uid,

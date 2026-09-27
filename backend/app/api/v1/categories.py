@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, File, UploadFile
+from app.core.exceptions import BadRequestException
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.category_service import CategoryService
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
@@ -38,6 +39,24 @@ def get_category(
 ):
     service = CategoryService(db)
     return service.get_category(category_id)
+
+
+@router.post("/{category_id}/image", response_model=CategoryResponse)
+def upload_category_image(
+    category_id: int,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    file: UploadFile = File(...),
+):
+    data = file.file.read(5 * 1024 * 1024 + 1)
+    if not data:
+        raise BadRequestException("Empty file")
+    return CategoryService(db).set_image(category_id, data)
+
+
+@router.delete("/{category_id}/image", response_model=CategoryResponse)
+def delete_category_image(category_id: int, current_user: CurrentUser, db: DatabaseSession):
+    return CategoryService(db).clear_image(category_id)
 
 
 @router.put("/{category_id}", response_model=CategoryResponse)

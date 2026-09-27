@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Badge } from '@/components/common/Badge';
 import { NotesPanel } from '@/components/common/NotesPanel';
+import { ProductGallery, ProductImageField } from '@/components/common/ProductImage';
 import { productsApi } from '@/api/products';
 import { categoriesApi } from '@/api/categories';
 import { stockMovementsApi } from '@/api/stockMovements';
@@ -30,6 +31,8 @@ export const ProductDetailPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<ProductUpdate>({});
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -55,10 +58,11 @@ export const ProductDetailPage: React.FC = () => {
       setFormData({
         name: productData.name,
         description: productData.description,
-        barcode: productData.barcode,
         category_id: productData.category_id,
         list_price: productData.list_price,
       });
+      setImageFiles([]);
+      setRemovedImageUrls([]);
     } catch (err: any) {
       setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
@@ -73,6 +77,11 @@ export const ProductDetailPage: React.FC = () => {
     try {
       setIsSaving(true);
       await productsApi.update(product.id, formData);
+      if (imageFiles.length > 0 || removedImageUrls.length > 0) {
+        await productsApi.saveImages(product.id, imageFiles, removedImageUrls);
+      }
+      setImageFiles([]);
+      setRemovedImageUrls([]);
       setIsEditing(false);
       await loadProductData();
     } catch (err: any) {
@@ -176,6 +185,14 @@ export const ProductDetailPage: React.FC = () => {
             <Card title={t('products.productDetails')}>
               {isEditing ? (
                 <form onSubmit={handleSave} className="space-y-4">
+                  <ProductImageField
+                    currentUrls={product.image_urls?.length ? product.image_urls : (product.image_url ? [product.image_url] : [])}
+                    files={imageFiles}
+                    removedUrls={removedImageUrls}
+                    onFilesChange={setImageFiles}
+                    onRemovedUrlsChange={setRemovedImageUrls}
+                    alt={product.name}
+                  />
                   <Input
                     label={t('products.name')}
                     value={formData.name || ''}
@@ -191,12 +208,6 @@ export const ProductDetailPage: React.FC = () => {
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
-                      label={t('products.barcode')}
-                      value={formData.barcode || ''}
-                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                      fullWidth
-                    />
-                    <Input
                       label={t('products.listPrice')}
                       type="number"
                       step="0.01"
@@ -205,15 +216,15 @@ export const ProductDetailPage: React.FC = () => {
                       required
                       fullWidth
                     />
+                    <Select
+                      label={t('products.category')}
+                      value={formData.category_id || 0}
+                      onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
+                      options={categoryOptions}
+                      required
+                      fullWidth
+                    />
                   </div>
-                  <Select
-                    label={t('products.category')}
-                    value={formData.category_id || 0}
-                    onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
-                    options={categoryOptions}
-                    required
-                    fullWidth
-                  />
                   <div className="flex justify-end space-x-3 pt-4">
                     <Button
                       variant="secondary"
@@ -222,10 +233,11 @@ export const ProductDetailPage: React.FC = () => {
                         setFormData({
                           name: product.name,
                           description: product.description,
-                          barcode: product.barcode,
                           category_id: product.category_id,
                           list_price: product.list_price,
                         });
+                        setImageFiles([]);
+                        setRemovedImageUrls([]);
                       }}
                       type="button"
                     >
@@ -238,6 +250,12 @@ export const ProductDetailPage: React.FC = () => {
                 </form>
               ) : (
                 <div className="space-y-3">
+                  <div className="max-w-xs">
+                    <ProductGallery
+                      urls={product.image_urls?.length ? product.image_urls : (product.image_url ? [product.image_url] : [])}
+                      alt={product.name}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('products.category')}</label>
@@ -248,12 +266,6 @@ export const ProductDetailPage: React.FC = () => {
                       <p className="text-gray-900 dark:text-gray-100 font-bold text-lg">{formatCurrency(product.list_price)}</p>
                     </div>
                   </div>
-                  {product.barcode && (
-                    <div>
-                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('products.barcode')}</label>
-                      <p className="text-gray-900 dark:text-gray-100">{product.barcode}</p>
-                    </div>
-                  )}
                   {product.description && (
                     <div>
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('products.description')}</label>
@@ -297,7 +309,7 @@ export const ProductDetailPage: React.FC = () => {
                   {t('common.noData')}
                 </p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-hidden">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>

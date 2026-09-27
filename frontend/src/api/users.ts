@@ -26,6 +26,20 @@ export const usersApi = {
     return response.data;
   },
 
+  uploadPhoto: async (id: number, file: File): Promise<User> => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.post<User>(`/api/v1/users/${id}/photo`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deletePhoto: async (id: number): Promise<User> => {
+    const response = await apiClient.delete<User>(`/api/v1/users/${id}/photo`);
+    return response.data;
+  },
+
   updateProfile: async (data: UserProfileUpdate): Promise<User> => {
     const response = await apiClient.put<User>('/api/v1/users/me', data);
     return response.data;

@@ -15,6 +15,7 @@ import { Pagination } from '@/components/common/Pagination';
 import { Badge } from '@/components/common/Badge';
 import { DropdownMenu } from '@/components/common/DropdownMenu';
 import {NotesPanel } from '@/components/common/NotesPanel';
+import { ProductImage, ProductImageField } from '@/components/common/ProductImage';
 import { productsApi } from '@/api/products';
 import { categoriesApi } from '@/api/categories';
 import { formatCurrency, getErrorMessage } from '@/utils/format';
@@ -40,14 +41,16 @@ export const ProductsPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoryName, setCategoryName] = useState('');
+  const [categoryPhotoId, setCategoryPhotoId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<ProductCreate>({
     name: '',
     description: '',
-    barcode: '',
     category_id: 0,
     list_price: 0,
   });
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([]);
 
   useEffect(() => {
     loadCategories();
@@ -95,7 +98,10 @@ export const ProductsPage: React.FC = () => {
     e.preventDefault();
     try {
       setIsSubmitting(true);
-      await productsApi.create(formData);
+      const created = await productsApi.create(formData);
+      if (imageFiles.length > 0) {
+        await productsApi.saveImages(created.id, imageFiles, []);
+      }
       setShowCreateModal(false);
       resetForm();
       loadProducts();
@@ -113,6 +119,9 @@ export const ProductsPage: React.FC = () => {
     try {
       setIsSubmitting(true);
       await productsApi.update(selectedProduct.id, formData);
+      if (imageFiles.length > 0 || removedImageUrls.length > 0) {
+        await productsApi.saveImages(selectedProduct.id, imageFiles, removedImageUrls);
+      }
       setShowEditModal(false);
       setSelectedProduct(null);
       resetForm();
@@ -140,10 +149,11 @@ export const ProductsPage: React.FC = () => {
     setFormData({
       name: product.name,
       description: product.description,
-      barcode: product.barcode,
       category_id: product.category_id,
       list_price: product.list_price,
     });
+    setImageFiles([]);
+    setRemovedImageUrls([]);
     setShowEditModal(true);
   };
 
@@ -162,6 +172,19 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
+  const changeCategoryImage = async (categoryId: number, file: File | null) => {
+    setCategoryPhotoId(categoryId);
+    try {
+      if (file) await categoriesApi.uploadImage(categoryId, file);
+      else await categoriesApi.deleteImage(categoryId);
+      await loadCategories();
+    } catch (err: any) {
+      alert(getErrorMessage(err, t('errors.saveFailed')));
+    } finally {
+      setCategoryPhotoId(null);
+    }
+  };
+
   const handleDeleteCategory = async (categoryId: number) => {
     if (!confirm(t('products.confirmDeleteCategory'))) return;
     try {
@@ -176,10 +199,11 @@ export const ProductsPage: React.FC = () => {
     setFormData({
       name: '',
       description: '',
-      barcode: '',
       category_id: categories.length > 0 ? categories[0].id : 0,
       list_price: 0,
     });
+    setImageFiles([]);
+    setRemovedImageUrls([]);
   };
 
   const getStockBadge = (stock: number) => {
@@ -194,9 +218,14 @@ export const ProductsPage: React.FC = () => {
 
   const columns = [
     { key: 'id', header: t('common.id'), className: 'w-20' },
+    {
+      key: 'image',
+      header: t('products.image'),
+      className: 'w-16',
+      render: (p: Product) => <ProductImage src={p.image_url} alt={p.name} />,
+    },
     { key: 'name', header: t('products.name') },
     { key: 'category', header: t('products.category'), render: (p: Product) => getCategoryName(p.category_id) },
-    { key: 'barcode', header: t('products.barcode'), render: (p: Product) => p.barcode || '-' },
     { key: 'list_price', header: t('products.listPrice'), render: (p: Product) => formatCurrency(p.list_price) },
     {
       key: 'current_stock',
@@ -326,6 +355,14 @@ export const ProductsPage: React.FC = () => {
         title={t('products.addProduct')}
       >
         <form onSubmit={handleCreate} className="space-y-4">
+          <ProductImageField
+            currentUrls={[]}
+            files={imageFiles}
+            removedUrls={removedImageUrls}
+            onFilesChange={setImageFiles}
+            onRemovedUrlsChange={setRemovedImageUrls}
+            alt={formData.name}
+          />
           <Input
             label={t('products.name')}
             value={formData.name}
@@ -341,12 +378,6 @@ export const ProductsPage: React.FC = () => {
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label={t('products.barcode')}
-              value={formData.barcode}
-              onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-              fullWidth
-            />
-            <Input
               label={t('products.listPrice')}
               type="number"
               step="0.01"
@@ -355,15 +386,15 @@ export const ProductsPage: React.FC = () => {
               required
               fullWidth
             />
+            <Select
+              label={t('products.category')}
+              value={formData.category_id}
+              onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
+              options={categoryOptions}
+              required
+              fullWidth
+            />
           </div>
-          <Select
-            label={t('products.category')}
-            value={formData.category_id}
-            onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
-            options={categoryOptions}
-            required
-            fullWidth
-          />
           <div className="flex justify-end space-x-3 pt-4">
             <Button variant="secondary" onClick={() => setShowCreateModal(false)} type="button">
               {t('common.cancel')}
@@ -381,6 +412,14 @@ export const ProductsPage: React.FC = () => {
         title={t('products.editProduct')}
       >
         <form onSubmit={handleEdit} className="space-y-4">
+          <ProductImageField
+            currentUrls={selectedProduct?.image_urls?.length ? selectedProduct.image_urls : (selectedProduct?.image_url ? [selectedProduct.image_url] : [])}
+            files={imageFiles}
+            removedUrls={removedImageUrls}
+            onFilesChange={setImageFiles}
+            onRemovedUrlsChange={setRemovedImageUrls}
+            alt={formData.name}
+          />
           <Input
             label={t('products.name')}
             value={formData.name}
@@ -396,12 +435,6 @@ export const ProductsPage: React.FC = () => {
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label={t('products.barcode')}
-              value={formData.barcode}
-              onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-              fullWidth
-            />
-            <Input
               label={t('products.listPrice')}
               type="number"
               step="0.01"
@@ -410,15 +443,15 @@ export const ProductsPage: React.FC = () => {
               required
               fullWidth
             />
+            <Select
+              label={t('products.category')}
+              value={formData.category_id}
+              onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
+              options={categoryOptions}
+              required
+              fullWidth
+            />
           </div>
-          <Select
-            label={t('products.category')}
-            value={formData.category_id}
-            onChange={(e) => setFormData({ ...formData, category_id: parseInt(e.target.value) })}
-            options={categoryOptions}
-            required
-            fullWidth
-          />
           <div className="flex justify-end space-x-3 pt-4">
             <Button variant="secondary" onClick={() => { setShowEditModal(false); setSelectedProduct(null); }} type="button">
               {t('common.cancel')}
@@ -479,11 +512,38 @@ export const ProductsPage: React.FC = () => {
                 {categories.map((category) => (
                   <div
                     key={category.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                   >
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {category.name}
-                    </p>
+                    <ProductImage src={category.image_url} alt={category.name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 dark:text-white">{category.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-3">
+                        <label className="cursor-pointer text-xs font-medium text-primary-600 dark:text-primary-400">
+                          {categoryPhotoId === category.id ? t('common.loading') : t('products.uploadCategoryImage')}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            className="hidden"
+                            disabled={categoryPhotoId === category.id}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              event.target.value = '';
+                              if (file) changeCategoryImage(category.id, file);
+                            }}
+                          />
+                        </label>
+                        {category.image_url && (
+                          <button
+                            type="button"
+                            disabled={categoryPhotoId === category.id}
+                            onClick={() => changeCategoryImage(category.id, null)}
+                            className="text-xs text-slate-400 hover:text-red-500 disabled:opacity-50"
+                          >
+                            {t('products.removeCategoryImage')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <Button
                       variant="danger"
                       size="sm"

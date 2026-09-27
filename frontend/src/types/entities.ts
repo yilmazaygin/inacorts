@@ -23,6 +23,7 @@ export interface User {
   username: string;
   email?: string;
   is_admin: boolean;
+  is_sales_consultant: boolean;
   is_active: boolean;
   created_by?: number;
   created_by_username?: string;
@@ -34,6 +35,7 @@ export interface User {
   address?: string;
   backup_email?: string;
   phone_number?: string;
+  photo_url?: string | null;
   security_question_1?: string;
   security_question_2?: string;
   has_security_questions: boolean;
@@ -44,6 +46,7 @@ export interface UserCreate {
   password: string;
   email?: string;
   is_admin?: boolean;
+  is_sales_consultant?: boolean;
   name?: string;
   surname?: string;
   address?: string;
@@ -54,6 +57,7 @@ export interface UserCreate {
 export interface UserUpdate {
   email?: string;
   is_admin?: boolean;
+  is_sales_consultant?: boolean;
   name?: string;
   surname?: string;
   address?: string;
@@ -189,6 +193,7 @@ export interface ContactUpdate {
 // Category
 export interface Category extends BaseEntity {
   name: string;
+  image_url?: string | null;
   created_by_username?: string;
 }
 
@@ -204,7 +209,8 @@ export interface CategoryUpdate {
 export interface Product extends BaseEntity {
   name: string;
   description?: string;
-  barcode?: string;
+  image_url?: string | null;
+  image_urls?: string[];
   category_id: number;
   list_price: number;
   current_stock: number;
@@ -214,7 +220,6 @@ export interface Product extends BaseEntity {
 export interface ProductCreate {
   name: string;
   description?: string;
-  barcode?: string;
   category_id: number;
   list_price: number;
 }
@@ -222,7 +227,6 @@ export interface ProductCreate {
 export interface ProductUpdate {
   name?: string;
   description?: string;
-  barcode?: string;
   category_id?: number;
   list_price?: number;
 }

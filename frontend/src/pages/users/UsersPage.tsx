@@ -11,6 +11,7 @@ import { Table } from '@/components/common/Table';
 import { Badge } from '@/components/common/Badge';
 import { Pagination } from '@/components/common/Pagination';
 import { usersApi } from '@/api/users';
+import { PersonPhoto } from '@/components/site/PersonPhoto';
 import { authApi } from '@/api/auth';
 import { formatDate, getErrorMessage } from '@/utils/format';
 import type { User, UserCreate, UserUpdate } from '@/types/entities';
@@ -33,6 +34,7 @@ export const UsersPage: React.FC = () => {
     password: '',
     email: '',
     is_admin: false,
+    is_sales_consultant: false,
     name: '',
     surname: '',
     address: '',
@@ -54,6 +56,7 @@ export const UsersPage: React.FC = () => {
   // User detail panel
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailUser, setDetailUser] = useState<User | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isEditingDetail, setIsEditingDetail] = useState(false);
   const [detailForm, setDetailForm] = useState<UserUpdate>({});
@@ -141,7 +144,7 @@ export const UsersPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      username: '', password: '', email: '', is_admin: false,
+      username: '', password: '', email: '', is_admin: false, is_sales_consultant: false,
       name: '', surname: '', address: '', backup_email: '', phone_number: '',
     });
   };
@@ -186,6 +189,7 @@ export const UsersPage: React.FC = () => {
       setDetailForm({
         email: userData.email || '',
         is_admin: userData.is_admin,
+        is_sales_consultant: userData.is_sales_consultant,
         name: userData.name || '',
         surname: userData.surname || '',
         address: userData.address || '',
@@ -196,6 +200,27 @@ export const UsersPage: React.FC = () => {
       setDetailError(getErrorMessage(err, t('errors.loadFailed')));
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const applyUser = (updated: User) => {
+    setDetailUser(updated);
+    setUsers((rows) => rows.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)));
+  };
+
+  const changePhoto = async (file: File | null) => {
+    if (!detailUser) return;
+    setPhotoBusy(true);
+    setDetailError('');
+    try {
+      const updated = file
+        ? await usersApi.uploadPhoto(detailUser.id, file)
+        : await usersApi.deletePhoto(detailUser.id);
+      applyUser(updated);
+    } catch (err: any) {
+      setDetailError(getErrorMessage(err, t('errors.saveFailed')));
+    } finally {
+      setPhotoBusy(false);
     }
   };
 
@@ -239,8 +264,9 @@ export const UsersPage: React.FC = () => {
           onClick={() => openDetailModal(u)}
           className="flex items-center space-x-2 text-left hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
         >
+          <PersonPhoto name={u.name || u.username} url={u.photo_url} className="h-8 w-8 text-xs" />
           <span className={!u.is_active ? 'text-gray-400 dark:text-gray-500 line-through' : ''}>
-            {u.username}
+            {u.name ? `${u.name}${u.surname ? ` ${u.surname}` : ''}` : u.username}
           </span>
           {!u.is_active && (
             <Badge variant="danger" size="sm">{t('users.deactivated')}</Badge>
@@ -257,9 +283,11 @@ export const UsersPage: React.FC = () => {
       key: 'role',
       header: t('users.role'),
       render: (u: User) => (
-        <Badge variant={u.is_admin ? 'info' : 'default'} size="sm">
-          {u.is_admin ? t('users.admin') : t('users.user')}
-        </Badge>
+        <span className="inline-flex flex-wrap gap-1">
+          <Badge variant={u.is_admin ? 'info' : 'default'} size="sm">
+            {u.is_admin ? t('users.admin') : t('users.user')}
+          </Badge>
+        </span>
       ),
     },
     {
@@ -436,6 +464,19 @@ export const UsersPage: React.FC = () => {
               {t('users.isAdmin')}
             </label>
           </div>
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="is_sales_consultant"
+              checked={Boolean(formData.is_sales_consultant) && !['admin', 'system'].includes(formData.username.trim())}
+              disabled={['admin', 'system'].includes(formData.username.trim())}
+              onChange={(e) => setFormData({ ...formData, is_sales_consultant: e.target.checked })}
+              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50"
+            />
+            <label htmlFor="is_sales_consultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {t('users.salesConsultant')}
+            </label>
+          </div>
           <div className="flex justify-end space-x-3 pt-4">
             <Button variant="secondary" onClick={() => { setShowCreateModal(false); resetForm(); }} type="button">
               {t('common.cancel')}
@@ -522,11 +563,15 @@ export const UsersPage: React.FC = () => {
             {/* User header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-primary-600 dark:bg-primary-500 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                  {detailUser.username.charAt(0).toUpperCase()}
-                </div>
+                <PersonPhoto
+                  name={detailUser.name || detailUser.username}
+                  url={detailUser.photo_url}
+                  className="h-12 w-12 text-base"
+                />
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{detailUser.username}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {detailUser.name ? `${detailUser.name}${detailUser.surname ? ` ${detailUser.surname}` : ''}` : detailUser.username}
+                  </h3>
                   <div className="flex items-center space-x-2 mt-1">
                     <Badge variant={detailUser.is_admin ? 'info' : 'default'} size="sm">
                       {detailUser.is_admin ? t('users.admin') : t('users.user')}
@@ -541,6 +586,33 @@ export const UsersPage: React.FC = () => {
                 <Button variant="secondary" onClick={() => setIsEditingDetail(true)}>
                   {t('common.edit')}
                 </Button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex cursor-pointer items-center rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 dark:border-gray-600 dark:text-gray-200">
+                {photoBusy ? t('common.loading') : t('users.photoUpload')}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  disabled={photoBusy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (file) changePhoto(file);
+                  }}
+                />
+              </label>
+              {detailUser.photo_url && (
+                <button
+                  type="button"
+                  disabled={photoBusy}
+                  onClick={() => changePhoto(null)}
+                  className="text-sm text-slate-400 hover:text-red-500 disabled:opacity-50"
+                >
+                  {t('users.photoRemove')}
+                </button>
               )}
             </div>
 
@@ -604,6 +676,22 @@ export const UsersPage: React.FC = () => {
                   />
                   <label htmlFor="detail_is_admin" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {t('users.isAdmin')}
+                  </label>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <input
+                    type="checkbox"
+                    id="detail_is_sales_consultant"
+                    checked={Boolean(detailForm.is_sales_consultant) && !['admin', 'system'].includes(detailUser.username)}
+                    disabled={['admin', 'system'].includes(detailUser.username)}
+                    onChange={(e) => setDetailForm({ ...detailForm, is_sales_consultant: e.target.checked })}
+                    className="mt-0.5 w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50"
+                  />
+                  <label htmlFor="detail_is_sales_consultant" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t('users.salesConsultant')}
+                    {['admin', 'system'].includes(detailUser.username) && (
+                      <span className="mt-1 block text-xs font-normal text-gray-500">{t('users.salesConsultantLocked')}</span>
+                    )}
                   </label>
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">

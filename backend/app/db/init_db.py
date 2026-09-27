@@ -1,9 +1,15 @@
+import json
+
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect
 from app.db.base import Base, import_models
 from app.db.session import engine
 from app.models import User, ExpenseCategory
 from app.core.security import hash_password
+from app.core.config import settings
+from app.services.agreement_service import AgreementService
+from app.services.site_service import SiteService
+from app.utils.demo_catalog import seed_demo_catalog
 from loguru import logger
 
 
@@ -36,6 +42,8 @@ def _migrate_users_table(db: Session) -> None:
         ("security_answer_1_hash", "VARCHAR(255)"),
         ("security_question_2", "VARCHAR(500)"),
         ("security_answer_2_hash", "VARCHAR(255)"),
+        ("is_sales_consultant", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("photo_filename", "VARCHAR(255)"),
     ]
     inspector = inspect(engine)
     if "users" in inspector.get_table_names():
@@ -51,6 +59,36 @@ def _migrate_users_table(db: Session) -> None:
         db.commit()
 
 
+def _migrate_products_table(db: Session) -> None:
+    """Add product image storage and drop the removed barcode column."""
+    inspector = inspect(engine)
+    if "products" not in inspector.get_table_names():
+        return
+    _add_column_if_not_exists(db, "products", "image_filename", "VARCHAR(255)")
+    _add_column_if_not_exists(db, "products", "image_filenames", "TEXT")
+    rows = db.execute(text(
+        "SELECT id, image_filename, image_filenames FROM products"
+    )).fetchall()
+    for row in rows:
+        if row.image_filenames or not row.image_filename:
+            continue
+        db.execute(
+            text("UPDATE products SET image_filenames = :value WHERE id = :id"),
+            {"value": json.dumps([row.image_filename]), "id": row.id},
+        )
+    db.commit()
+    columns = [c["name"] for c in inspect(engine).get_columns("products")]
+    if "barcode" in columns:
+        try:
+            db.execute(text("DROP INDEX IF EXISTS ix_products_barcode"))
+            db.execute(text("ALTER TABLE products DROP COLUMN barcode"))
+            db.commit()
+            logger.info("Dropped column 'barcode' from table 'products'")
+        except Exception as exc:
+            db.rollback()
+            logger.warning(f"Could not drop products.barcode: {exc}")
+
+
 def init_db(db: Session) -> None:
     # Ensure all models are imported before creating tables
     import_models()
@@ -58,6 +96,8 @@ def init_db(db: Session) -> None:
     
     # Migrate existing tables to add new columns
     _migrate_users_table(db)
+    _migrate_products_table(db)
+    _add_column_if_not_exists(db, "categories", "image_filename", "VARCHAR(255)")
     
     admin_user = db.query(User).filter(User.username == "admin").first()
     if not admin_user:
@@ -96,6 +136,30 @@ def init_db(db: Session) -> None:
         if system_user.created_by is None:
             system_user.created_by = admin_user.id
             db.commit()
+
+    admin_user.is_sales_consultant = False
+    system_user.is_sales_consultant = False
+    consultants = [
+        {"username": "muharrem", "password": "muharrem", "name": "Muharrem", "surname": "Gülmez"},
+        {"username": "efe", "password": "efeugur", "name": "Efe", "surname": "Uğur"},
+    ]
+    for person in consultants:
+        existing = db.query(User).filter(User.username == person["username"]).first()
+        if existing:
+            continue
+        db.add(User(
+            username=person["username"],
+            hashed_password=hash_password(person["password"]),
+            is_admin=False,
+            is_sales_consultant=True,
+            is_active=True,
+            name=person["name"],
+            surname=person["surname"],
+            phone_number="541 943 44 04",
+            created_by=admin_user.id,
+        ))
+        logger.info(f"Sales consultant created: {person['username']}")
+    db.commit()
     
     # Create default expense categories
     default_categories = [
@@ -120,6 +184,10 @@ def init_db(db: Session) -> None:
             logger.info(f"Expense category created: {cat_data['name']}")
     
     db.commit()
+    SiteService(db).ensure_content(admin_user.id)
+    AgreementService(db).ensure(admin_user.id)
+    if settings.SEED_DEMO_PRODUCTS:
+        seed_demo_catalog(db, admin_user.id)
     logger.info("Database initialized")
 
 
