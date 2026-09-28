@@ -28,8 +28,8 @@ LABEL maintainer="INACORTS" \
       description="React frontend for INACORTS served via Nginx" \
       version="1.1.0"
 
-# Remove the default Nginx site
-RUN rm /etc/nginx/conf.d/default.conf
+# Remove the default Nginx site. wget is used by the healthcheck.
+RUN apk add --no-cache wget && rm /etc/nginx/conf.d/default.conf
 
 # Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
