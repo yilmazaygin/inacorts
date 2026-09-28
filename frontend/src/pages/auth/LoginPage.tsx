@@ -26,7 +26,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login({ username, password });
-      navigate('/admin/dashboard');
+      navigate('/admin');
     } catch (err: any) {
       setError(err.response?.data?.detail || t('auth.invalidCredentials'));
     } finally {

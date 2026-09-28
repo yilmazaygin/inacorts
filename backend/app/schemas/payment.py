@@ -21,6 +21,7 @@ class PaymentResponse(PaymentBase):
     updated_at: datetime
     updated_by: int
     received_by_username: Optional[str] = None  # WHO collected/received this payment
+    order_total: Optional[float] = None
     
     class Config:
         from_attributes = True

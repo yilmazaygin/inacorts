@@ -38,6 +38,16 @@ export const expensesApi = {
     await apiClient.delete(`/api/v1/expenses/${id}`);
   },
 
+  summary: async (params?: { category_id?: number; start_date?: string; end_date?: string }): Promise<{ total_amount: number; count: number }> => {
+    const response = await apiClient.get('/api/v1/expenses/summary', { params });
+    return response.data;
+  },
+
+  exportFile: async (params: { format: 'csv' | 'xlsx'; lang: string; category_id?: number; start_date?: string; end_date?: string }): Promise<void> => {
+    const { downloadExport } = await import('@/utils/download');
+    await downloadExport('/api/v1/expenses/export', params, `expenses.${params.format === 'xlsx' ? 'xlsx' : 'csv'}`);
+  },
+
   getHistory: async (id: number): Promise<ExpenseHistory[]> => {
     const response = await apiClient.get(`/api/v1/expenses/${id}/history`);
     return response.data;

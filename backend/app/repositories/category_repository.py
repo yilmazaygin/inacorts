@@ -21,9 +21,12 @@ class CategoryRepository:
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "id",
-        order: str = "asc"
+        order: str = "asc",
+        search: Optional[str] = None,
     ) -> Tuple[List[Category], int]:
         query = self.db.query(Category).options(joinedload(Category.created_by_user))
+        if search:
+            query = query.filter(Category.name.ilike(f"%{search}%"))
         
         total = query.count()
         

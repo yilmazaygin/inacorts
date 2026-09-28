@@ -1,6 +1,7 @@
 import apiClient from './client';
 import type { PaginatedResponse, PaginationParams } from '@/types/api';
 import type { Tag, TagCreate, TagLinkRequest, TagUnlinkRequest } from '@/types/entities';
+import type { TagEntityType } from '@/types/enums';
 
 export const tagsApi = {
   list: async (params?: PaginationParams): Promise<PaginatedResponse<Tag>> => {
@@ -15,6 +16,13 @@ export const tagsApi = {
 
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/v1/tags/${id}`);
+  },
+
+  links: async (entityType: TagEntityType, entityId: number): Promise<Tag[]> => {
+    const response = await apiClient.get<Tag[]>('/api/v1/tags/links', {
+      params: { entity_type: entityType, entity_id: entityId },
+    });
+    return response.data;
   },
 
   link: async (data: TagLinkRequest): Promise<void> => {

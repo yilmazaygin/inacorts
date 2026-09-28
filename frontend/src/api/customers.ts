@@ -2,8 +2,15 @@ import apiClient from './client';
 import type { PaginatedResponse, SearchParams } from '@/types/api';
 import type { Customer, CustomerCreate, CustomerUpdate } from '@/types/entities';
 
+interface CustomerListParams extends SearchParams {
+  created_by?: number;
+  start_date?: string;
+  end_date?: string;
+  tag_id?: number;
+}
+
 export const customersApi = {
-  list: async (params?: SearchParams): Promise<PaginatedResponse<Customer>> => {
+  list: async (params?: CustomerListParams): Promise<PaginatedResponse<Customer>> => {
     const response = await apiClient.get<PaginatedResponse<Customer>>('/api/v1/customers', { params });
     return response.data;
   },

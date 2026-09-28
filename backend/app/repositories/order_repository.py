@@ -1,9 +1,10 @@
 from typing import Optional, List, Tuple
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import and_
 from datetime import datetime
-from app.models import Order, OrderItem, OrderStatus, PaymentStatus, DeliveryStatus
+from app.models import Order, OrderItem, OrderStatus, PaymentStatus, DeliveryStatus, TagEntityType
 from app.schemas.order import OrderCreate, OrderUpdate, OrderItemCreate
+from app.repositories.list_filters import restrict_records
 
 
 class OrderRepository:
@@ -14,8 +15,10 @@ class OrderRepository:
         return (
             self.db.query(Order)
             .options(
-                joinedload(Order.created_by_user),
-                joinedload(Order.items)
+                selectinload(Order.created_by_user),
+                selectinload(Order.customer),
+                selectinload(Order.payments),
+                selectinload(Order.items).selectinload(OrderItem.product),
             )
             .filter(Order.id == order_id)
             .first()
@@ -32,9 +35,11 @@ class OrderRepository:
         payment_status: Optional[PaymentStatus] = None,
         delivery_status: Optional[DeliveryStatus] = None,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        end_date: Optional[datetime] = None,
+        created_by: Optional[int] = None,
+        tag_id: Optional[int] = None,
     ) -> Tuple[List[Order], int]:
-        query = self.db.query(Order).options(joinedload(Order.created_by_user))
+        query = self.db.query(Order)
         
         if customer_id:
             query = query.filter(Order.customer_id == customer_id)
@@ -53,6 +58,9 @@ class OrderRepository:
         
         if end_date:
             query = query.filter(Order.created_at <= end_date)
+        query = restrict_records(
+            query, Order, created_by=created_by, tag_id=tag_id, tag_type=TagEntityType.ORDER,
+        )
         
         total = query.count()
         
@@ -64,9 +72,51 @@ class OrderRepository:
                 query = query.order_by(column.asc())
         
         offset = (page - 1) * page_size
-        items = query.offset(offset).limit(page_size).all()
+        items = (
+            query.options(
+                selectinload(Order.created_by_user),
+                selectinload(Order.customer),
+                selectinload(Order.items).selectinload(OrderItem.product),
+            )
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
         
         return items, total
+
+    def list_for_export(
+        self,
+        customer_id: Optional[int] = None,
+        order_status: Optional[OrderStatus] = None,
+        payment_status: Optional[PaymentStatus] = None,
+        delivery_status: Optional[DeliveryStatus] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        created_by: Optional[int] = None,
+        tag_id: Optional[int] = None,
+    ) -> List[Order]:
+        query = self.db.query(Order).options(
+            selectinload(Order.created_by_user),
+            selectinload(Order.customer),
+            selectinload(Order.items).selectinload(OrderItem.product),
+        )
+        if customer_id:
+            query = query.filter(Order.customer_id == customer_id)
+        if order_status:
+            query = query.filter(Order.order_status == order_status)
+        if payment_status:
+            query = query.filter(Order.payment_status == payment_status)
+        if delivery_status:
+            query = query.filter(Order.delivery_status == delivery_status)
+        if start_date:
+            query = query.filter(Order.created_at >= start_date)
+        if end_date:
+            query = query.filter(Order.created_at <= end_date)
+        query = restrict_records(
+            query, Order, created_by=created_by, tag_id=tag_id, tag_type=TagEntityType.ORDER,
+        )
+        return query.order_by(Order.created_at.desc()).all()
     
     def create(self, data: OrderCreate, user_id: int) -> Order:
         total_amount = sum(item.quantity * item.unit_price for item in data.items)

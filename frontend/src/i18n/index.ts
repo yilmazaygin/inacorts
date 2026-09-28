@@ -5,6 +5,12 @@ import en from './locales/en.json';
 
 const savedLanguage = localStorage.getItem('language') || 'tr';
 
+const applyDocumentLanguage = (language: string) => {
+  document.documentElement.lang = language.startsWith('en') ? 'en' : 'tr';
+};
+
+applyDocumentLanguage(savedLanguage);
+
 i18n
   .use(initReactI18next)
   .init({
@@ -18,5 +24,7 @@ i18n
       escapeValue: false,
     },
   });
+
+i18n.on('languageChanged', applyDocumentLanguage);
 
 export default i18n;

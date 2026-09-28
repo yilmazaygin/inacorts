@@ -11,13 +11,15 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Badge } from '@/components/common/Badge';
 import { NotesPanel } from '@/components/common/NotesPanel';
+import { Pagination } from '@/components/common/Pagination';
 import { ProductGallery, ProductImageField } from '@/components/common/ProductImage';
 import { productsApi } from '@/api/products';
 import { categoriesApi } from '@/api/categories';
 import { stockMovementsApi } from '@/api/stockMovements';
 import { formatCurrency, formatDate, getErrorMessage } from '@/utils/format';
 import type { Product, ProductUpdate, Category, StockMovement } from '@/types/entities';
-import { EntityType, StockMovementType } from '@/types/enums';
+import { TagEditor } from '@/components/common/TagEditor';
+import { EntityType, StockMovementType, TagEntityType } from '@/types/enums';
 
 export const ProductDetailPage: React.FC = () => {
   const { t } = useTranslation();
@@ -26,6 +28,8 @@ export const ProductDetailPage: React.FC = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [movementPage, setMovementPage] = useState(1);
+  const [movementPages, setMovementPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -38,28 +42,36 @@ export const ProductDetailPage: React.FC = () => {
     if (id) {
       loadProductData();
     }
-  }, [id]);
+  }, [id, movementPage]);
 
   const loadProductData = async () => {
     try {
-      setIsLoading(true);
+      if (!product) setIsLoading(true);
       setError('');
       const productId = parseInt(id!);
 
       const [productData, categoriesData, movementsData] = await Promise.all([
         productsApi.get(productId),
-        categoriesApi.list({ page_size: 1000 }),
-        stockMovementsApi.list({ product_id: productId, page_size: 50 }),
+        categoriesApi.list({ page: 1, page_size: 100, sort: 'name', order: 'asc' }),
+        stockMovementsApi.list({ product_id: productId, page: movementPage, page_size: 20 }),
       ]);
 
       setProduct(productData);
-      setCategories(categoriesData.items);
+      const categoryItems = categoriesData.items;
+      if (!categoryItems.some((category) => category.id === productData.category_id)) {
+        const current = await categoriesApi.get(productData.category_id);
+        categoryItems.unshift(current);
+      }
+      setCategories(categoryItems);
       setStockMovements(movementsData.items);
+      setMovementPages(movementsData.total_pages);
       setFormData({
         name: productData.name,
+        sku: productData.sku || '',
         description: productData.description,
         category_id: productData.category_id,
         list_price: productData.list_price,
+        show_on_site: productData.show_on_site,
       });
       setImageFiles([]);
       setRemovedImageUrls([]);
@@ -200,6 +212,20 @@ export const ProductDetailPage: React.FC = () => {
                     required
                     fullWidth
                   />
+                  <Input
+                    label={t('products.sku')}
+                    value={formData.sku || ''}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    fullWidth
+                  />
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={formData.show_on_site !== false}
+                      onChange={(e) => setFormData({ ...formData, show_on_site: e.target.checked })}
+                    />
+                    {t('products.showOnSite')}
+                  </label>
                   <TextArea
                     label={t('products.description')}
                     value={formData.description || ''}
@@ -232,9 +258,11 @@ export const ProductDetailPage: React.FC = () => {
                         setIsEditing(false);
                         setFormData({
                           name: product.name,
+                          sku: product.sku || '',
                           description: product.description,
                           category_id: product.category_id,
                           list_price: product.list_price,
+                          show_on_site: product.show_on_site,
                         });
                         setImageFiles([]);
                         setRemovedImageUrls([]);
@@ -264,6 +292,14 @@ export const ProductDetailPage: React.FC = () => {
                     <div>
                       <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('products.listPrice')}</label>
                       <p className="text-gray-900 dark:text-gray-100 font-bold text-lg">{formatCurrency(product.list_price)}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('products.sku')}</label>
+                      <p className="text-gray-900 dark:text-gray-100">{product.sku || '-'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('products.showOnSite')}</label>
+                      <p className="text-gray-900 dark:text-gray-100">{product.show_on_site ? t('products.showOnSite') : t('products.hideOnSite')}</p>
                     </div>
                   </div>
                   {product.description && (
@@ -300,6 +336,9 @@ export const ProductDetailPage: React.FC = () => {
                   )}
                 </div>
               )}
+            </Card>
+            <Card title={t('common.tag')}>
+              <TagEditor entityType={TagEntityType.PRODUCT} entityId={product.id} />
             </Card>
 
             {/* Stock Movements */}
@@ -344,6 +383,7 @@ export const ProductDetailPage: React.FC = () => {
                   </table>
                 </div>
               )}
+              <Pagination currentPage={movementPage} totalPages={movementPages} onPageChange={setMovementPage} />
             </Card>
           </div>
 

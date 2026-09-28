@@ -4,6 +4,10 @@ import type { Product, ProductCreate, ProductUpdate } from '@/types/entities';
 
 interface ProductListParams extends SearchParams {
   category_id?: number;
+  created_by?: number;
+  start_date?: string;
+  end_date?: string;
+  tag_id?: number;
 }
 
 export const productsApi = {
@@ -24,6 +28,15 @@ export const productsApi = {
 
   update: async (id: number, data: ProductUpdate): Promise<Product> => {
     const response = await apiClient.put<Product>(`/api/v1/products/${id}`, data);
+    return response.data;
+  },
+
+  bulkPrice: async (productIds: number[], mode: 'percent' | 'amount', value: number): Promise<{ updated: number }> => {
+    const response = await apiClient.post<{ updated: number }>('/api/v1/products/bulk-price', {
+      product_ids: productIds,
+      mode,
+      value,
+    });
     return response.data;
   },
 

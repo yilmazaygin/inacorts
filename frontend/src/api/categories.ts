@@ -3,7 +3,7 @@ import type { PaginatedResponse, PaginationParams } from '@/types/api';
 import type { Category, CategoryCreate, CategoryUpdate } from '@/types/entities';
 
 export const categoriesApi = {
-  list: async (params?: PaginationParams): Promise<PaginatedResponse<Category>> => {
+  list: async (params?: PaginationParams & { search?: string }): Promise<PaginatedResponse<Category>> => {
     const response = await apiClient.get<PaginatedResponse<Category>>('/api/v1/categories', { params });
     return response.data;
   },

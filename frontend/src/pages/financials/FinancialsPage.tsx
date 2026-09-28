@@ -1,18 +1,21 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
-import { paymentsApi } from '@/api/payments';
-import { expensesApi } from '@/api/expenses';
-import { ordersApi } from '@/api/orders';
+import { reportsApi, type FinancialPeriod, type FinancialReport } from '@/api/reports';
 import { formatCurrency, formatCompactCurrency } from '@/utils/format';
-import { subMonths, subYears, format } from 'date-fns';
-import type { Payment, Expense, Order, ExpenseCategory } from '@/types/entities';
 
 type Period = 'lastMonth' | 'lastYear' | 'allTime';
+
+const periodParam: Record<Period, FinancialPeriod> = {
+  lastMonth: 'last_month',
+  lastYear: 'last_year',
+  allTime: 'all_time',
+};
 
 interface PeriodData {
   revenue: number;
@@ -34,48 +37,25 @@ interface SaleInsight {
   label: string;
 }
 
+const emptyPeriod: PeriodData = { revenue: 0, expenses: 0, netProfit: 0, profitMargin: 0 };
+
 export const FinancialsPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [activePeriod, setActivePeriod] = useState<Period>('lastMonth');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [allPayments, setAllPayments] = useState<Payment[]>([]);
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
-  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
-  const [periodData, setPeriodData] = useState<Record<Period, PeriodData>>({
-    lastMonth: { revenue: 0, expenses: 0, netProfit: 0, profitMargin: 0 },
-    lastYear: { revenue: 0, expenses: 0, netProfit: 0, profitMargin: 0 },
-    allTime: { revenue: 0, expenses: 0, netProfit: 0, profitMargin: 0 },
-  });
+  const [report, setReport] = useState<FinancialReport | null>(null);
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  useEffect(() => {
-    if (allPayments.length > 0 || allExpenses.length > 0) {
-      calculatePeriods();
-    }
-  }, [allPayments, allExpenses]);
+  }, [activePeriod]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
       setError('');
-
-      const [paymentsData, expensesData, ordersData, categoriesData] = await Promise.all([
-        paymentsApi.list({ page_size: 10000 }),
-        expensesApi.list({ page_size: 10000 }),
-        ordersApi.list({ page_size: 10000 }),
-        expensesApi.listCategories({ page_size: 1000 }),
-      ]);
-
-      setAllPayments(paymentsData.items);
-      setAllExpenses(expensesData.items);
-      setAllOrders(ordersData.items);
-      setExpenseCategories(categoriesData.items);
+      setReport(await reportsApi.financials(periodParam[activePeriod]));
     } catch (err: any) {
       setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
@@ -83,131 +63,38 @@ export const FinancialsPage: React.FC = () => {
     }
   };
 
-  const now = new Date();
-  const oneMonthAgo = subMonths(now, 1);
-  const oneYearAgo = subYears(now, 1);
+  const current: PeriodData = report
+    ? {
+        revenue: report.revenue,
+        expenses: report.expenses,
+        netProfit: report.net_profit,
+        profitMargin: report.profit_margin,
+      }
+    : emptyPeriod;
 
-  const getStartDate = (period: Period): Date | undefined => {
-    if (period === 'lastMonth') return oneMonthAgo;
-    if (period === 'lastYear') return oneYearAgo;
-    return undefined;
-  };
+  const categoryBreakdown: CategoryBreakdownRow[] = (report?.category_breakdown ?? []).map((row) => ({
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    amount: row.amount,
+  }));
 
-  const filterPaymentsByPeriod = (payments: Payment[], startDate?: Date): Payment[] => {
-    if (!startDate) return payments;
-    const startStr = format(startDate, 'yyyy-MM-dd');
-    return payments.filter((p) => p.created_at >= startStr);
-  };
-
-  const filterExpensesByPeriod = (expenses: Expense[], startDate?: Date): Expense[] => {
-    if (!startDate) return expenses;
-    const startStr = format(startDate, 'yyyy-MM-dd');
-    return expenses.filter((e) => e.date >= startStr);
-  };
-
-  const filterOrdersByPeriod = (orders: Order[], startDate?: Date): Order[] => {
-    if (!startDate) return orders;
-    const startStr = format(startDate, 'yyyy-MM-dd');
-    return orders.filter((o) => o.created_at >= startStr);
-  };
-
-  const calculatePeriods = () => {
-    const calcForPeriod = (startDate?: Date): PeriodData => {
-      const filteredPayments = filterPaymentsByPeriod(allPayments, startDate);
-      const filteredExpenses = filterExpensesByPeriod(allExpenses, startDate);
-
-      const revenue = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
-      const expenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-      const netProfit = revenue - expenses;
-      const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
-
-      return { revenue, expenses, netProfit, profitMargin };
+  const insight = (item: FinancialReport['highest_line_items'], label: string): SaleInsight | null => {
+    if (!item) return null;
+    return {
+      orderId: item.order_id,
+      customerName: `${t('orders.orderNumber')}${item.order_id}`,
+      value: item.value,
+      label,
     };
-
-    setPeriodData({
-      lastMonth: calcForPeriod(oneMonthAgo),
-      lastYear: calcForPeriod(oneYearAgo),
-      allTime: calcForPeriod(),
-    });
   };
 
-  // Category-based expense breakdown — only for active period
-  const categoryBreakdown = useMemo((): CategoryBreakdownRow[] => {
-    if (allExpenses.length === 0) return [];
-
-    const startDate = getStartDate(activePeriod);
-    const filtered = filterExpensesByPeriod(allExpenses, startDate);
-    const categoryMap = new Map<number, CategoryBreakdownRow>();
-
-    for (const expense of filtered) {
-      const catId = expense.category_id;
-      if (!categoryMap.has(catId)) {
-        const cat = expenseCategories.find((c) => c.id === catId);
-        categoryMap.set(catId, {
-          categoryId: catId,
-          categoryName: expense.category_name || cat?.name || `#${catId}`,
-          amount: 0,
-        });
+  const topSalesInsights = report && (report.highest_line_items || report.highest_volume || report.highest_quantity)
+    ? {
+        highestLineItems: insight(report.highest_line_items, t('financials.lineItems', { count: report.highest_line_items?.value ?? 0 })),
+        highestVolume: insight(report.highest_volume, formatCurrency(report.highest_volume?.value ?? 0)),
+        highestProfit: insight(report.highest_quantity, t('financials.totalQuantity', { count: report.highest_quantity?.value ?? 0 })),
       }
-
-      const row = categoryMap.get(catId)!;
-      row.amount += expense.amount;
-    }
-
-    return Array.from(categoryMap.values()).sort((a, b) => b.amount - a.amount);
-  }, [allExpenses, expenseCategories, activePeriod]);
-
-  // Top Sales Insights for active period
-  const topSalesInsights = useMemo(() => {
-    const startDate = getStartDate(activePeriod);
-    const filteredOrders = filterOrdersByPeriod(allOrders, startDate);
-
-    if (filteredOrders.length === 0) return null;
-
-    let highestLineItems: SaleInsight | null = null;
-    let maxItems = 0;
-    let highestVolume: SaleInsight | null = null;
-    let maxVolume = 0;
-    let highestProfit: SaleInsight | null = null;
-    let maxQty = 0;
-
-    for (const order of filteredOrders) {
-      const itemCount = order.items ? order.items.length : 0;
-      const totalQty = order.items ? order.items.reduce((s, i) => s + i.quantity, 0) : 0;
-
-      if (itemCount > maxItems) {
-        maxItems = itemCount;
-        highestLineItems = {
-          orderId: order.id,
-          customerName: `${t('orders.orderNumber')}${order.id}`,
-          value: itemCount,
-          label: t('financials.lineItems', { count: itemCount }),
-        };
-      }
-
-      if (order.total_amount > maxVolume) {
-        maxVolume = order.total_amount;
-        highestVolume = {
-          orderId: order.id,
-          customerName: `${t('orders.orderNumber')}${order.id}`,
-          value: order.total_amount,
-          label: formatCurrency(order.total_amount),
-        };
-      }
-
-      if (totalQty > maxQty) {
-        maxQty = totalQty;
-        highestProfit = {
-          orderId: order.id,
-          customerName: `${t('orders.orderNumber')}${order.id}`,
-          value: totalQty,
-          label: t('financials.totalQuantity', { count: totalQty }),
-        };
-      }
-    }
-
-    return { highestLineItems, highestVolume, highestProfit };
-  }, [allOrders, activePeriod, t]);
+    : null;
 
   const periods: { key: Period; label: string }[] = [
     { key: 'lastMonth', label: t('financials.lastMonth') },
@@ -215,13 +102,14 @@ export const FinancialsPage: React.FC = () => {
     { key: 'allTime', label: t('financials.allTime') },
   ];
 
-  const current = periodData[activePeriod];
-
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('financials.title')}</h1>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('financials.title')}</h1>
+          </div>
           <p className="text-gray-600 dark:text-gray-400 mt-1">{t('financials.subtitle')}</p>
         </div>
 

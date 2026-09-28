@@ -29,6 +29,9 @@ class StockMovementService:
             response = StockMovementResponse.model_validate(item)
             if item.performed_by_user:
                 response.performed_by_username = item.performed_by_user.username
+            if item.product:
+                response.product_name = item.product.name
+                response.current_stock = item.product.current_stock
             responses.append(response)
         
         return PaginatedResponse(

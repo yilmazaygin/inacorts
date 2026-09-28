@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from typing import Optional
+from datetime import datetime
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.payment_service import PaymentService
 from app.schemas.payment import PaymentCreate, PaymentResponse
@@ -12,12 +13,33 @@ router = APIRouter()
 def list_payments(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20,
-    order_id: Optional[int] = None
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    order_id: Optional[int] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
 ):
     service = PaymentService(db)
-    return service.list_payments(page, page_size, order_id)
+    return service.list_payments(page, page_size, order_id, start_date, _end_of_day(end_date))
+
+
+def _end_of_day(value: Optional[datetime]) -> Optional[datetime]:
+    if value and value.hour == 0 and value.minute == 0 and value.second == 0 and value.microsecond == 0:
+        return value.replace(hour=23, minute=59, second=59)
+    return value
+
+
+@router.get("/export")
+def export_payments(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    file_format: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+    lang: str = Query("tr", pattern="^(tr|en)$"),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+):
+    service = PaymentService(db)
+    return service.export_payments(file_format, lang, start_date, _end_of_day(end_date))
 
 
 @router.post("", response_model=PaymentResponse)

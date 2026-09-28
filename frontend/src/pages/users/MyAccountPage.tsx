@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -186,7 +187,10 @@ export const MyAccountPage: React.FC = () => {
   return (
     <AppLayout>
       <div className="space-y-6 pb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('users.myAccount')}</h1>
+        <div className="flex items-center gap-1">
+          <BackButton />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('users.myAccount')}</h1>
+        </div>
 
         {/* Profile Card */}
         <Card>

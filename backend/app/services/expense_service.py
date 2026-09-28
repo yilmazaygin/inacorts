@@ -12,10 +12,12 @@ from app.schemas.expense import (
     ExpenseHistoryResponse
 )
 from app.schemas.common import PaginatedResponse
+from app.schemas.report import ExpenseSummary
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.models import ExpenseHistory
 from math import ceil
 from loguru import logger
+from app.services.spreadsheet import spreadsheet_response
 
 
 class ExpenseService:
@@ -69,6 +71,44 @@ class ExpenseService:
             page_size=page_size,
             total_pages=ceil(total / page_size) if total > 0 else 0
         )
+
+    def summarize(
+        self,
+        category_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> ExpenseSummary:
+        total_amount, count = self.expense_repo.summarize(category_id, start_date, end_date)
+        return ExpenseSummary(total_amount=total_amount, count=count)
+
+    def export_expenses(
+        self,
+        file_format: str,
+        lang: str,
+        category_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ):
+        expenses = self.expense_repo.list_for_export(category_id, start_date, end_date)
+        turkish = lang != "en"
+        headers = (
+            ["No", "Tarih", "Kategori", "Açıklama", "Tutar", "Giren"]
+            if turkish else
+            ["No", "Date", "Category", "Description", "Amount", "Created by"]
+        )
+        rows = []
+        for expense in expenses:
+            when = expense.date.strftime("%Y-%m-%d") if expense.date else ""
+            rows.append([
+                expense.id,
+                when,
+                expense.category.name if expense.category else "",
+                expense.description,
+                expense.amount,
+                expense.created_by_user.username if expense.created_by_user else "",
+            ])
+        filename = "masraflar" if turkish else "expenses"
+        return spreadsheet_response(filename, headers, rows, file_format)
     
     def create_expense(self, data: ExpenseCreate, user_id: int) -> ExpenseResponse:
         # Validate category exists

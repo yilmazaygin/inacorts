@@ -1,35 +1,47 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Select } from '@/components/common/Select';
 import { Modal } from '@/components/common/Modal';
+import { Drawer } from '@/components/common/Drawer';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Badge } from '@/components/common/Badge';
 import { Table } from '@/components/common/Table';
 import { DropdownMenu } from '@/components/common/DropdownMenu';
+import { Pagination } from '@/components/common/Pagination';
+import { ExportBar } from '@/components/common/ExportBar';
 import { expensesApi } from '@/api/expenses';
 import { formatCurrency, formatDate, getErrorMessage } from '@/utils/format';
 import type { Expense, ExpenseCategory, ExpenseCreate, ExpenseUpdate, ExpenseCategoryCreate, ExpenseHistory } from '@/types/entities';
 
 export const ExpensesPage: React.FC = () => {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
+  const [showAddCategoryDrawer, setShowAddCategoryDrawer] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<number | ''>('');
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [expenseHistory, setExpenseHistory] = useState<ExpenseHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [totalAmount, setTotalAmount] = useState(0);
 
   const [editFormData, setEditFormData] = useState<ExpenseUpdate>({});
 
@@ -47,22 +59,36 @@ export const ExpensesPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [selectedCategory]);
+  }, [selectedCategory, page, startDate, endDate]);
+
+  useEffect(() => {
+    if (searchParams.get('yeni') !== '1') return;
+    setShowCreateModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('yeni');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
       setError('');
       
-      const [expensesData, categoriesData] = await Promise.all([
-        expensesApi.list({
-          category_id: selectedCategory || undefined,
-        }),
-        expensesApi.listCategories(),
+      const filters = {
+        category_id: selectedCategory || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      };
+      const [expensesData, categoriesData, summary] = await Promise.all([
+        expensesApi.list({ ...filters, page, page_size: 20 }),
+        expensesApi.listCategories({ page: 1, page_size: 100 }),
+        expensesApi.summary(filters),
       ]);
 
       setExpenses(expensesData.items);
+      setTotalPages(expensesData.total_pages);
       setCategories(categoriesData.items);
+      setTotalAmount(summary.total_amount);
     } catch (err: any) {
       setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
@@ -146,7 +172,7 @@ export const ExpensesPage: React.FC = () => {
     try {
       setIsSubmitting(true);
       await expensesApi.createCategory(categoryFormData);
-      setShowCategoryModal(false);
+      setShowAddCategoryDrawer(false);
       setCategoryFormData({ name: '', description: '' });
       await loadData();
     } catch (err: any) {
@@ -165,8 +191,6 @@ export const ExpensesPage: React.FC = () => {
       alert(getErrorMessage(err, t('errors.deleteFailed')));
     }
   };
-
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   const columns = [
     {
@@ -247,22 +271,34 @@ export const ExpensesPage: React.FC = () => {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {t('expenses.title')}
-            </h1>
+            <div className="flex items-center gap-1">
+              <BackButton />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {t('expenses.title')}
+              </h1>
+            </div>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {t('expenses.totalExpenses')}: <span className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(totalExpenses)}</span>
+              {t('expenses.totalExpenses')}: <span className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(totalAmount)}</span>
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setShowCategoryModal(true)}>
-              {t('expenses.manageCategories')}
-            </Button>
-            <Button onClick={() => setShowCreateModal(true)}>
+          <div className="flex w-full gap-2">
+            <Button className="min-w-0 flex-1" onClick={() => setShowCreateModal(true)}>
               {t('expenses.createExpense')}
             </Button>
+            <button
+              type="button"
+              aria-label={t('expenses.manageCategories')}
+              title={t('expenses.manageCategories')}
+              onClick={() => setShowCategoryDrawer(true)}
+              className="inline-flex w-10 shrink-0 items-center justify-center self-stretch rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -274,7 +310,7 @@ export const ExpensesPage: React.FC = () => {
                 <Select
                   label={t('expenses.filterByCategory')}
                   value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value ? parseInt(e.target.value) : '')}
+                  onChange={(e) => { setSelectedCategory(e.target.value ? parseInt(e.target.value) : ''); setPage(1); }}
                   options={[
                     { value: '', label: t('expenses.allCategories') },
                     ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
@@ -282,6 +318,14 @@ export const ExpensesPage: React.FC = () => {
                   fullWidth
                 />
               </div>
+            </div>
+            <div className="mt-4">
+              <ExportBar
+                startDate={startDate}
+                endDate={endDate}
+                onStartDate={(value) => { setStartDate(value); setPage(1); }}
+                onEndDate={(value) => { setEndDate(value); setPage(1); }}
+              />
             </div>
           </div>
         </Card>
@@ -318,7 +362,10 @@ export const ExpensesPage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <Table columns={columns} data={expenses} />
+              <>
+                <Table columns={columns} data={expenses} />
+                <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+              </>
             )}
           </div>
         </Card>
@@ -486,35 +533,27 @@ export const ExpensesPage: React.FC = () => {
           )}
         </Modal>
 
-        {/* Manage Categories Modal */}
-        <Modal
-          isOpen={showCategoryModal}
-          onClose={() => setShowCategoryModal(false)}
+        <Drawer
+          isOpen={showCategoryDrawer}
+          onClose={() => {
+            if (showAddCategoryDrawer) return;
+            setShowCategoryDrawer(false);
+          }}
           title={t('expenses.manageCategories')}
         >
           <div className="space-y-4">
-            <form onSubmit={handleCreateCategory} className="space-y-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                {t('expenses.createCategory')}
-              </h3>
-              <Input
-                label={t('expenses.categoryName')}
-                value={categoryFormData.name}
-                onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
-                required
-              />
-              <Input
-                label={t('expenses.categoryDescription')}
-                value={categoryFormData.description || ''}
-                onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
-              />
-              <Button type="submit" disabled={isSubmitting} fullWidth>
-                {isSubmitting ? t('common.loading') : t('expenses.addCategory')}
-              </Button>
-            </form>
+            <Button
+              fullWidth
+              onClick={() => {
+                setCategoryFormData({ name: '', description: '' });
+                setShowAddCategoryDrawer(true);
+              }}
+            >
+              {t('expenses.addCategory')}
+            </Button>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+              <h3 className="mb-2 text-sm font-medium text-gray-900 dark:text-white">
                 {t('expenses.existingCategories')}
               </h3>
               {categories.length === 0 ? (
@@ -551,7 +590,33 @@ export const ExpensesPage: React.FC = () => {
               )}
             </div>
           </div>
-        </Modal>
+        </Drawer>
+
+        <Drawer
+          isOpen={showAddCategoryDrawer}
+          onClose={() => setShowAddCategoryDrawer(false)}
+          title={t('expenses.createCategory')}
+          className="z-[60]"
+        >
+          <form onSubmit={handleCreateCategory} className="space-y-4">
+            <Input
+              label={t('expenses.categoryName')}
+              value={categoryFormData.name}
+              onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+              required
+              fullWidth
+            />
+            <Input
+              label={t('expenses.categoryDescription')}
+              value={categoryFormData.description || ''}
+              onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+              fullWidth
+            />
+            <Button type="submit" disabled={isSubmitting} fullWidth>
+              {isSubmitting ? t('common.loading') : t('expenses.addCategory')}
+            </Button>
+          </form>
+        </Drawer>
       </div>
     </AppLayout>
   );

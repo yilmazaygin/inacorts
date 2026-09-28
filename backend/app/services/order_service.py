@@ -13,6 +13,7 @@ from app.core.exceptions import NotFoundException, BadRequestException
 from app.models import OrderStatus, PaymentStatus, DeliveryStatus, StockMovementType
 from datetime import datetime
 from math import ceil
+from app.services.spreadsheet import spreadsheet_response
 from loguru import logger
 
 
@@ -26,17 +27,24 @@ class OrderService:
         self.product_repo = ProductRepository(db)
         self.delivery_repo = OrderDeliveryRepository(db)
     
+    def _to_response(self, order, include_paid: bool = False) -> OrderResponse:
+        response = OrderResponse.model_validate(order)
+        if order.created_by_user:
+            response.created_by_username = order.created_by_user.username
+        if order.customer:
+            response.customer_name = order.customer.name
+        names = {item.id: item.product.name for item in order.items if item.product}
+        for item in response.items:
+            item.product_name = names.get(item.id)
+        if include_paid:
+            response.amount_paid = sum(payment.amount for payment in order.payments)
+        return response
+
     def get_order(self, order_id: int) -> OrderResponse:
         order = self.order_repo.get_by_id(order_id)
         if not order:
             raise NotFoundException("Order not found")
-        
-        response = OrderResponse.model_validate(order)
-        # Populate username from relationship
-        if order.created_by_user:
-            response.created_by_username = order.created_by_user.username
-        
-        return response
+        return self._to_response(order, include_paid=True)
     
     def list_orders(
         self,
@@ -49,20 +57,17 @@ class OrderService:
         payment_status: Optional[PaymentStatus] = None,
         delivery_status: Optional[DeliveryStatus] = None,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        end_date: Optional[datetime] = None,
+        created_by: Optional[int] = None,
+        tag_id: Optional[int] = None,
     ) -> PaginatedResponse[OrderResponse]:
         items, total = self.order_repo.list_all(
             page, page_size, sort_by, order,
             customer_id, order_status, payment_status, delivery_status,
-            start_date, end_date
+            start_date, end_date, created_by, tag_id,
         )
         
-        responses = []
-        for item in items:
-            response = OrderResponse.model_validate(item)
-            if item.created_by_user:
-                response.created_by_username = item.created_by_user.username
-            responses.append(response)
+        responses = [self._to_response(item) for item in items]
         
         return PaginatedResponse(
             items=responses,
@@ -71,11 +76,74 @@ class OrderService:
             page_size=page_size,
             total_pages=ceil(total / page_size) if total > 0 else 0
         )
+
+    def export_orders(
+        self,
+        file_format: str,
+        lang: str,
+        customer_id: Optional[int] = None,
+        order_status: Optional[OrderStatus] = None,
+        payment_status: Optional[PaymentStatus] = None,
+        delivery_status: Optional[DeliveryStatus] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        created_by: Optional[int] = None,
+        tag_id: Optional[int] = None,
+    ):
+        orders = self.order_repo.list_for_export(
+            customer_id, order_status, payment_status, delivery_status, start_date, end_date,
+            created_by, tag_id,
+        )
+        turkish = lang != "en"
+        headers = (
+            ["Sipariş no", "Tarih", "Müşteri", "Durum", "Ödeme", "Teslimat", "Ürün", "Miktar", "Birim fiyat", "Satır tutarı", "Sipariş toplamı", "Oluşturan"]
+            if turkish else
+            ["Order", "Date", "Customer", "Status", "Payment", "Delivery", "Product", "Quantity", "Unit price", "Line total", "Order total", "Created by"]
+        )
+        status_labels = {
+            OrderStatus.OPEN: "Açık" if turkish else "Open",
+            OrderStatus.COMPLETED: "Tamamlandı" if turkish else "Completed",
+            OrderStatus.CANCELED: "İptal" if turkish else "Canceled",
+            PaymentStatus.UNPAID: "Ödenmedi" if turkish else "Unpaid",
+            PaymentStatus.PARTIALLY_PAID: "Kısmi" if turkish else "Partial",
+            PaymentStatus.PAID: "Ödendi" if turkish else "Paid",
+            DeliveryStatus.NOT_DELIVERED: "Teslim edilmedi" if turkish else "Not delivered",
+            DeliveryStatus.PARTIALLY_DELIVERED: "Kısmi teslim" if turkish else "Partial",
+            DeliveryStatus.DELIVERED: "Teslim edildi" if turkish else "Delivered",
+        }
+        rows = []
+        for order in orders:
+            created = order.created_at.strftime("%Y-%m-%d %H:%M") if order.created_at else ""
+            customer = order.customer.name if order.customer else ""
+            author = order.created_by_user.username if order.created_by_user else ""
+            base = [
+                order.id,
+                created,
+                customer,
+                status_labels.get(order.order_status, order.order_status.value),
+                status_labels.get(order.payment_status, order.payment_status.value),
+                status_labels.get(order.delivery_status, order.delivery_status.value),
+            ]
+            if not order.items:
+                rows.append([*base, "", "", "", "", order.total_amount, author])
+                continue
+            for item in order.items:
+                rows.append([
+                    *base,
+                    item.product.name if item.product else item.product_id,
+                    item.quantity,
+                    item.unit_price,
+                    item.quantity * item.unit_price,
+                    order.total_amount,
+                    author,
+                ])
+        filename = "siparisler" if turkish else "orders"
+        return spreadsheet_response(filename, headers, rows, file_format)
     
     def create_order(self, data: OrderCreate, user_id: int) -> OrderResponse:
         order = self.order_repo.create(data, user_id)
         logger.info(f"Order {order.id} created by user {user_id}")
-        return OrderResponse.model_validate(order)
+        return self._to_response(self.order_repo.get_by_id(order.id))
     
     def update_order(self, order_id: int, data: OrderUpdate, user_id: int) -> OrderResponse:
         order = self.order_repo.get_by_id(order_id)
@@ -86,7 +154,7 @@ class OrderService:
             raise BadRequestException("Cannot update a canceled order")
         
         order = self.order_repo.update(order, data, user_id)
-        return OrderResponse.model_validate(order)
+        return self._to_response(self.order_repo.get_by_id(order.id))
     
     def cancel_order(self, order_id: int, user_id: int) -> OrderResponse:
         order = self.order_repo.get_by_id(order_id)
@@ -115,7 +183,7 @@ class OrderService:
         order = self.order_repo.update_status(order, user_id)
         logger.info(f"Order {order.id} canceled by user {user_id}")
         
-        return OrderResponse.model_validate(order)
+        return self._to_response(self.order_repo.get_by_id(order.id), include_paid=True)
     
     def delete_order(self, order_id: int, user_id: int) -> None:
         order = self.order_repo.get_by_id(order_id)
@@ -172,7 +240,7 @@ class OrderService:
         
         logger.info(f"Order item {item_id} delivered {data.quantity} units by user {user_id}")
         
-        return OrderResponse.model_validate(item.order)
+        return self._to_response(self.order_repo.get_by_id(item.order_id), include_paid=True)
     
     def _update_order_delivery_status(self, order, user_id: int):
         total_quantity = sum(item.quantity for item in order.items)

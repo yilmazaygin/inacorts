@@ -5,7 +5,17 @@ import type {
   SecurityQuestionSetup, SecurityQuestionUpdate, ChangePasswordRequest
 } from '@/types/entities';
 
+export interface UserLookup {
+  id: number;
+  username: string;
+}
+
 export const usersApi = {
+  lookup: async (): Promise<UserLookup[]> => {
+    const response = await apiClient.get<UserLookup[]>('/api/v1/users/lookup');
+    return response.data;
+  },
+
   list: async (params?: SearchParams): Promise<PaginatedResponse<User>> => {
     const response = await apiClient.get<PaginatedResponse<User>>('/api/v1/users', { params });
     return response.data;

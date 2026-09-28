@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from datetime import datetime
+from fastapi import APIRouter, Query
 from typing import Optional
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.customer_service import CustomerService
@@ -12,14 +13,20 @@ router = APIRouter()
 def list_customers(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     sort: str = "id",
     order: str = "asc",
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    created_by: Optional[int] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    tag_id: Optional[int] = None,
 ):
+    if end_date and end_date.hour == 0 and end_date.minute == 0 and end_date.second == 0:
+        end_date = end_date.replace(hour=23, minute=59, second=59)
     service = CustomerService(db)
-    return service.list_customers(page, page_size, sort, order, search)
+    return service.list_customers(page, page_size, sort, order, search, created_by, start_date, end_date, tag_id)
 
 
 @router.post("", response_model=CustomerResponse)

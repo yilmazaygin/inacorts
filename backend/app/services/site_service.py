@@ -3,12 +3,12 @@ import re
 from typing import Optional, List
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, func
+from sqlalchemy import and_, or_, func
 
 from app.models import SiteSettings, Product, Category, User, UserAgreement
 from app.schemas.site import SalesConsultantPublic
-from app.schemas.site import SiteContent, PublicCategory, PublicProduct, default_site_content
-from app.core.exceptions import ForbiddenException
+from app.schemas.site import SiteContent, PublicCategory, PublicProduct, PublicProductPage, default_site_content
+from app.core.exceptions import ForbiddenException, NotFoundException
 from app.utils.product_images import (
     category_image_url,
     delete_favicon,
@@ -38,18 +38,48 @@ def replace_brand(text: str, old: str, new: str) -> str:
     return pattern.sub(lambda _match: new_name, text)
 
 
+def _rename_value(value, old_name: str, new_name: str):
+    if isinstance(value, str):
+        return replace_brand(value, old_name, new_name)
+    if isinstance(value, dict):
+        return {key: _rename_value(item, old_name, new_name) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_rename_value(item, old_name, new_name) for item in value]
+    return value
+
+
 def apply_system_name(previous: SiteContent, data: SiteContent) -> SiteContent:
     new_name = data.company_name.strip() or previous.company_name.strip()
     payload = data.model_dump()
     old_name = previous.company_name.strip()
     if old_name and new_name and old_name.casefold() != new_name.casefold():
         for key, value in payload.items():
-            if key in _SKIP_BRAND_FIELDS or not isinstance(value, str):
+            if key in _SKIP_BRAND_FIELDS:
                 continue
-            payload[key] = replace_brand(value, old_name, new_name)
+            payload[key] = _rename_value(value, old_name, new_name)
     payload["company_name"] = new_name
     payload["tab_title"] = new_name
     return SiteContent(**payload)
+
+
+def merge_site_content(stored: dict) -> SiteContent:
+    defaults = default_site_content().model_dump()
+    labels = dict(defaults.get("labels") or {})
+    incoming_labels = stored.get("labels")
+    if isinstance(incoming_labels, dict):
+        for key, value in incoming_labels.items():
+            if isinstance(value, str) and value.strip():
+                labels[key] = value
+    faqs = stored["faqs"] if isinstance(stored.get("faqs"), list) else defaults["faqs"]
+    payload = {
+        key: value
+        for key, value in stored.items()
+        if key in defaults and key not in ("labels", "faqs")
+    }
+    defaults.update(payload)
+    defaults["labels"] = labels
+    defaults["faqs"] = faqs
+    return SiteContent(**defaults)
 
 
 class SiteService:
@@ -60,10 +90,7 @@ class SiteService:
         row = self.db.query(SiteSettings).order_by(SiteSettings.id.asc()).first()
         if not row:
             return default_site_content()
-        stored = json.loads(row.data)
-        defaults = default_site_content().model_dump()
-        defaults.update({key: value for key, value in stored.items() if key in defaults})
-        return SiteContent(**defaults)
+        return merge_site_content(json.loads(row.data))
 
     def ensure_content(self, user_id: Optional[int]) -> None:
         row = self.db.query(SiteSettings).first()
@@ -168,6 +195,7 @@ class SiteService:
             people.append(SalesConsultantPublic(
                 name=name,
                 phone=(user.phone_number or "").strip(),
+                email=(user.email or "").strip(),
                 photo_url=user_photo_url(user.photo_filename),
             ))
         return people
@@ -175,7 +203,7 @@ class SiteService:
     def list_categories(self) -> List[PublicCategory]:
         rows = (
             self.db.query(Category, func.count(Product.id))
-            .outerjoin(Product, Product.category_id == Category.id)
+            .outerjoin(Product, and_(Product.category_id == Category.id, Product.show_on_site.is_(True)))
             .group_by(Category.id)
             .order_by(Category.name.asc())
             .all()
@@ -190,35 +218,73 @@ class SiteService:
             for category, count in rows
         ]
 
+    def _public_product(self, product: Product) -> PublicProduct:
+        urls = [
+            url for name in filenames_from(product.image_filenames, product.image_filename)
+            if (url := image_url_for(name))
+        ]
+        return PublicProduct(
+            id=product.id,
+            name=product.name,
+            description=product.description,
+            category_id=product.category_id,
+            category_name=product.category.name if product.category else "",
+            list_price=product.list_price,
+            in_stock=product.current_stock > 0,
+            image_url=urls[0] if urls else None,
+            image_urls=urls,
+        )
+
+    def get_product(self, product_id: int) -> PublicProduct:
+        product = (
+            self.db.query(Product)
+            .options(joinedload(Product.category))
+            .filter(Product.id == product_id)
+            .first()
+        )
+        if not product or not product.show_on_site:
+            raise NotFoundException("Product not found")
+        return self._public_product(product)
+
     def list_products(
         self,
         category_id: Optional[int] = None,
         search: Optional[str] = None,
-    ) -> List[PublicProduct]:
-        query = self.db.query(Product).options(joinedload(Product.category))
+        page: int = 1,
+        page_size: int = 12,
+        sort: str = "az",
+    ) -> PublicProductPage:
+        page = max(page, 1)
+        page_size = min(max(page_size, 1), 48)
+        query = self.db.query(Product).filter(Product.show_on_site.is_(True))
         if category_id:
             query = query.filter(Product.category_id == category_id)
-        if search:
+        needle = (search or "").strip()
+        if needle:
             query = query.filter(or_(
-                Product.name.ilike(f"%{search}%"),
-                Product.description.ilike(f"%{search}%"),
+                Product.name.ilike(f"%{needle}%"),
+                Product.description.ilike(f"%{needle}%"),
+                Product.sku.ilike(f"%{needle}%"),
             ))
-        products = query.order_by(Product.name.asc()).limit(500).all()
-        result = []
-        for product in products:
-            urls = [
-                url for name in filenames_from(product.image_filenames, product.image_filename)
-                if (url := image_url_for(name))
-            ]
-            result.append(PublicProduct(
-                id=product.id,
-                name=product.name,
-                description=product.description,
-                category_id=product.category_id,
-                category_name=product.category.name if product.category else "",
-                list_price=product.list_price,
-                in_stock=product.current_stock > 0,
-                image_url=urls[0] if urls else None,
-                image_urls=urls,
-            ))
-        return result
+        total = query.count()
+        if sort == "za":
+            ordering = (Product.name.desc(), Product.id.asc())
+        elif sort == "price-asc":
+            ordering = (Product.list_price.asc(), Product.name.asc(), Product.id.asc())
+        elif sort == "price-desc":
+            ordering = (Product.list_price.desc(), Product.name.asc(), Product.id.asc())
+        else:
+            ordering = (Product.name.asc(), Product.id.asc())
+        rows = (
+            query.options(joinedload(Product.category))
+            .order_by(*ordering)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        return PublicProductPage(
+            items=[self._public_product(product) for product in rows],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )

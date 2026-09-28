@@ -18,6 +18,7 @@ class OrderItemResponse(OrderItemBase):
     id: int
     order_id: int
     delivered_quantity: int
+    product_name: Optional[str] = None
     created_at: datetime
     created_by: int
     updated_at: datetime
@@ -48,6 +49,8 @@ class OrderResponse(BaseModel):
     updated_at: datetime
     updated_by: int
     created_by_username: Optional[str] = None  # WHO created this order
+    customer_name: Optional[str] = None
+    amount_paid: Optional[float] = None
     items: list[OrderItemResponse] = []
     
     class Config:

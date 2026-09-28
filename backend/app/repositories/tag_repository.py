@@ -39,6 +39,15 @@ class TagRepository:
         self.db.refresh(tag)
         return tag
     
+    def list_for_entity(self, entity_type: TagEntityType, entity_id: int) -> List[Tag]:
+        return (
+            self.db.query(Tag)
+            .join(TagLink, TagLink.tag_id == Tag.id)
+            .filter(TagLink.entity_type == entity_type, TagLink.entity_id == entity_id)
+            .order_by(Tag.name.asc())
+            .all()
+        )
+
     def delete(self, tag: Tag) -> None:
         self.db.delete(tag)
         self.db.commit()

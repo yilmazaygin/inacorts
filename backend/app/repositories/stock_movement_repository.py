@@ -24,7 +24,7 @@ class StockMovementRepository:
     ) -> Tuple[List[StockMovement], int]:
         query = (
             self.db.query(StockMovement)
-            .options(joinedload(StockMovement.performed_by_user))
+            .options(joinedload(StockMovement.performed_by_user), joinedload(StockMovement.product))
             .filter(StockMovement.product_id == product_id)
         )
         total = query.count()
@@ -41,7 +41,10 @@ class StockMovementRepository:
         page_size: int = 20,
         product_id: Optional[int] = None
     ) -> Tuple[List[StockMovement], int]:
-        query = self.db.query(StockMovement).options(joinedload(StockMovement.performed_by_user))
+        query = self.db.query(StockMovement).options(
+            joinedload(StockMovement.performed_by_user),
+            joinedload(StockMovement.product),
+        )
         
         if product_id:
             query = query.filter(StockMovement.product_id == product_id)

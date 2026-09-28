@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 from typing import Optional, List
 from datetime import datetime
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
@@ -15,8 +15,8 @@ router = APIRouter()
 def list_orders(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     sort: str = "id",
     order: str = "desc",
     customer_id: Optional[int] = None,
@@ -24,13 +24,43 @@ def list_orders(
     payment_status: Optional[PaymentStatus] = None,
     delivery_status: Optional[DeliveryStatus] = None,
     start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None,
+    created_by: Optional[int] = None,
+    tag_id: Optional[int] = None,
 ):
     service = OrderService(db)
     return service.list_orders(
         page, page_size, sort, order,
         customer_id, order_status, payment_status, delivery_status,
-        start_date, end_date
+        start_date, _end_of_day(end_date), created_by, tag_id,
+    )
+
+
+def _end_of_day(value: Optional[datetime]) -> Optional[datetime]:
+    if value and value.hour == 0 and value.minute == 0 and value.second == 0 and value.microsecond == 0:
+        return value.replace(hour=23, minute=59, second=59)
+    return value
+
+
+@router.get("/export")
+def export_orders(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    file_format: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+    lang: str = Query("tr", pattern="^(tr|en)$"),
+    customer_id: Optional[int] = None,
+    order_status: Optional[OrderStatus] = None,
+    payment_status: Optional[PaymentStatus] = None,
+    delivery_status: Optional[DeliveryStatus] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    created_by: Optional[int] = None,
+    tag_id: Optional[int] = None,
+):
+    service = OrderService(db)
+    return service.export_orders(
+        file_format, lang, customer_id, order_status, payment_status, delivery_status,
+        start_date, _end_of_day(end_date), created_by, tag_id,
     )
 
 

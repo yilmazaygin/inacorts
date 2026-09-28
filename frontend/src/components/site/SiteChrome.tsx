@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Modal } from '@/components/common/Modal';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCart } from '@/contexts/CartContext';
+import { agreementHref } from '@/utils/agreementLink';
+import { useSiteLabel } from '@/utils/siteText';
 import type { SiteContent } from '@/types/site';
 
 interface SiteChromeProps {
@@ -12,11 +15,13 @@ interface SiteChromeProps {
 
 export const SiteChrome: React.FC<SiteChromeProps> = ({ content, children }) => {
   const { t, i18n } = useTranslation();
+  const label = useSiteLabel(content);
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { count } = useCart();
   const [open, setOpen] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const name = content?.company_name || 'INACORTS';
 
   const isTurkish = i18n.language.startsWith('tr');
@@ -28,9 +33,9 @@ export const SiteChrome: React.FC<SiteChromeProps> = ({ content, children }) => 
   };
 
   const infoLinks = [
-    { to: '/', hash: '', label: t('site.home') },
-    { to: '/#hakkimizda', hash: 'hakkimizda', label: t('site.about') },
-    { to: '/#iletisim', hash: 'iletisim', label: t('site.contact') },
+    { to: '/', hash: '', label: label('home') },
+    { to: '/#hakkimizda', hash: 'hakkimizda', label: label('about') },
+    { to: '/#iletisim', hash: 'iletisim', label: label('contact') },
   ];
 
   const scrollToSection = (hash: string) => {
@@ -57,24 +62,45 @@ export const SiteChrome: React.FC<SiteChromeProps> = ({ content, children }) => 
     window.setTimeout(() => scrollToSection(hash), 0);
   };
   const shopLinks = [
-    { to: '/urunler', label: t('site.products'), cart: false },
-    { to: '/sepet', label: t('site.myCart'), cart: true },
+    { to: '/urunler', label: label('products') },
+    { to: '/sepet', label: label('myCart') },
+    { to: '/nasil-siparis', label: label('howToOrder') },
   ];
+  const here = `${location.pathname}${location.search}${location.hash}`;
+  const onCart = location.pathname.startsWith('/sepet');
+  const sectionOn = (hash: string) => location.pathname === '/' && location.hash.replace('#', '') === hash;
+  const shopOn = (to: string) => location.pathname === to;
+  const drawerItem = (active: boolean) => (
+    `rounded-md px-3 py-3 text-sm ${active
+      ? 'font-medium text-slate-950 underline decoration-amber-600 decoration-2 underline-offset-4 dark:text-white'
+      : 'text-slate-800 hover:bg-stone-100 dark:text-slate-100 dark:hover:bg-white/10'}`
+  );
 
   const close = () => setOpen(false);
 
+  useEffect(() => {
+    if (!localStorage.getItem('inacorts_storage_notice')) setNoticeOpen(true);
+  }, []);
+
+  const closeNotice = () => {
+    localStorage.setItem('inacorts_storage_notice', '1');
+    setNoticeOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-stone-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <header className="site-nav border-b border-stone-200 bg-white text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white">
+      <header className="site-nav border-b border-stone-200 bg-white text-slate-900 print:hidden dark:border-white/10 dark:bg-slate-950 dark:text-white">
         <div className="relative h-16">
         <Link
           to="/sepet"
-          className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-slate-700 hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-white/10"
-          aria-label={t('site.cart')}
+          aria-current={onCart ? 'page' : undefined}
+          className={`absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md hover:bg-stone-100 dark:hover:bg-white/10 ${onCart ? 'text-slate-950 dark:text-white' : 'text-slate-700 dark:text-slate-200'}`}
+          aria-label={label('cart')}
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 6h13M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z" />
           </svg>
+          {onCart && <span className="absolute inset-x-2 bottom-1 h-0.5 bg-amber-600 dark:bg-amber-400" />}
           {count > 0 && (
             <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-slate-950">
               {count > 99 ? '99+' : count}
@@ -87,7 +113,7 @@ export const SiteChrome: React.FC<SiteChromeProps> = ({ content, children }) => 
             event.preventDefault();
             openSection('');
           }}
-          className="absolute left-1/2 top-0 flex h-16 max-w-[70%] -translate-x-1/2 items-center truncate text-lg font-semibold tracking-tight"
+          className="absolute left-1/2 top-0 flex h-16 max-w-[70%] -translate-x-1/2 items-center truncate font-semibold text-[1.35rem] tracking-tight"
         >
           {name}
         </Link>
@@ -112,10 +138,10 @@ export const SiteChrome: React.FC<SiteChromeProps> = ({ content, children }) => 
         type="button"
         aria-label={t('common.close')}
         onClick={close}
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        className={`site-overlay fixed inset-0 z-40 bg-black/50 transition-opacity print:hidden ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <nav
-        className={`fixed inset-y-0 right-0 z-50 flex w-72 flex-col bg-white text-slate-900 shadow-xl transition-transform duration-300 dark:bg-slate-950 dark:text-white ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`site-drawer fixed inset-y-0 right-0 z-50 flex w-72 flex-col bg-white text-slate-900 shadow-xl transition-transform duration-300 print:hidden dark:bg-slate-950 dark:text-white ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="flex h-16 items-center justify-between gap-2 border-b border-stone-200 px-3 dark:border-white/10">
           <div className="flex items-center gap-1">
@@ -156,14 +182,14 @@ export const SiteChrome: React.FC<SiteChromeProps> = ({ content, children }) => 
                 event.preventDefault();
                 openSection(link.hash);
               }}
-              className="rounded-md px-3 py-3 text-sm text-slate-800 hover:bg-stone-100 dark:text-slate-100 dark:hover:bg-white/10"
+              className={drawerItem(sectionOn(link.hash))}
             >
               {link.label}
             </Link>
           ))}
           <div className="mx-3 my-2 h-px bg-stone-200 dark:bg-white/15" />
           {shopLinks.map((link) => (
-            <Link key={link.to} to={link.to} onClick={close} className="rounded-md px-3 py-3 text-sm text-slate-800 hover:bg-stone-100 dark:text-slate-100 dark:hover:bg-white/10">
+            <Link key={link.to} to={link.to} onClick={close} className={drawerItem(shopOn(link.to))}>
               {link.label}
             </Link>
           ))}
@@ -173,19 +199,41 @@ export const SiteChrome: React.FC<SiteChromeProps> = ({ content, children }) => 
       <div className="overflow-x-clip">
       <main>{children}</main>
 
-      <footer className="border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)] text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-base font-semibold text-slate-900 dark:text-white">{name}</p>
-          <div className="text-sm sm:text-right">
-            <Link to="/sozlesme" className="block text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
-              {t('site.userAgreement')}
-            </Link>
-            <Link to="/admin/login" className="mt-2 inline-block text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
-              {t('site.admin')}
-            </Link>
+      <footer className="site-footer border-t-[0.5px] border-white bg-slate-950 pb-[env(safe-area-inset-bottom)] text-stone-300 print:hidden dark:bg-black">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
+          <div className="sm:flex sm:items-center sm:justify-between">
+            <p className="font-medium text-lg tracking-tight text-white">{name}</p>
+            <nav className="mt-4 flex flex-col border-t border-white/10 sm:mt-0 sm:flex-row sm:items-center sm:gap-6 sm:border-0">
+              {[
+                { to: '/nasil-siparis', label: label('howToOrder') },
+                { to: agreementHref(here), label: label('userAgreement') },
+                { to: '/admin/login', label: label('admin') },
+              ].map((link) => (
+                <Link
+                  key={link.label}
+                  to={link.to}
+                  className="border-b border-white/10 py-3.5 text-sm text-stone-100 underline decoration-white/25 underline-offset-4 transition hover:decoration-amber-400 sm:border-0 sm:py-0"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
           </div>
+          <p className="mt-5 text-xs leading-5 text-stone-400 sm:mt-8 sm:border-t sm:border-white/10 sm:pt-4">
+            {label('storageNotice')}
+          </p>
         </div>
       </footer>
+      <Modal isOpen={noticeOpen} onClose={closeNotice} title={label('storageNoticeTitle')} size="sm">
+        <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{label('storageNotice')}</p>
+        <button
+          type="button"
+          onClick={closeNotice}
+          className="mt-4 w-full rounded-2xl bg-amber-500 py-3 text-sm font-semibold text-slate-950"
+        >
+          {label('storageNoticeOk')}
+        </button>
+      </Modal>
       </div>
     </div>
   );

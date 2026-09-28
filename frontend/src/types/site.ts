@@ -1,7 +1,15 @@
 export interface SalesConsultant {
   name: string;
   phone: string;
+  email?: string;
   photo_url?: string | null;
+}
+
+export interface FaqItem {
+  question_tr: string;
+  question_en: string;
+  answer_tr: string;
+  answer_en: string;
 }
 
 export interface SiteContent {
@@ -38,6 +46,15 @@ export interface SiteContent {
   feature3_title_en: string;
   feature3_text_tr: string;
   feature3_text_en: string;
+  consultant_whatsapp_tr: string;
+  consultant_whatsapp_en: string;
+  bulk_price_note_tr?: string;
+  bulk_price_note_en?: string;
+  featured_category_ids?: number[];
+  featured_master_product_id?: number | null;
+  featured_product_ids?: number[];
+  labels?: Record<string, string>;
+  faqs?: FaqItem[];
 }
 
 export interface PublicAgreement {
@@ -66,6 +83,13 @@ export interface PublicCategory {
   name: string;
   product_count: number;
   image_url?: string | null;
+}
+
+export interface PublicProductPage {
+  items: PublicProduct[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 export interface PublicProduct {

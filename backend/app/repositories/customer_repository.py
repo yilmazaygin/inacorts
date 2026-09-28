@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_
-from app.models import Customer, Contact
+from app.models import Customer, Contact, TagEntityType
 from app.schemas.customer import CustomerCreate, CustomerUpdate
+from app.repositories.list_filters import restrict_records
 
 
 class CustomerRepository:
@@ -23,7 +25,11 @@ class CustomerRepository:
         page_size: int = 20,
         sort_by: str = "id",
         order: str = "asc",
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        created_by: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        tag_id: Optional[int] = None,
     ) -> Tuple[List[Customer], int]:
         query = self.db.query(Customer).options(joinedload(Customer.created_by_user))
         
@@ -35,6 +41,11 @@ class CustomerRepository:
                     Customer.phone.ilike(f"%{search}%")
                 )
             )
+        query = restrict_records(
+            query, Customer,
+            created_by=created_by, start_date=start_date, end_date=end_date,
+            tag_id=tag_id, tag_type=TagEntityType.CUSTOMER,
+        )
         
         total = query.count()
         

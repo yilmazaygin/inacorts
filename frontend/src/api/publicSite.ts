@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { AgreementAdmin, AgreementUpdate, PublicAgreement, PublicCategory, PublicProduct, SiteContent } from '@/types/site';
+import type { AgreementAdmin, AgreementUpdate, PublicAgreement, PublicCategory, PublicProduct, PublicProductPage, SiteContent } from '@/types/site';
 
 export const publicSiteApi = {
   site: async (): Promise<SiteContent> => {
@@ -12,8 +12,19 @@ export const publicSiteApi = {
     return response.data;
   },
 
-  products: async (): Promise<PublicProduct[]> => {
-    const response = await apiClient.get<PublicProduct[]>('/api/v1/public/products');
+  products: async (params?: {
+    page?: number;
+    page_size?: number;
+    category_id?: number;
+    search?: string;
+    sort?: string;
+  }): Promise<PublicProductPage> => {
+    const response = await apiClient.get<PublicProductPage>('/api/v1/public/products', { params });
+    return response.data;
+  },
+
+  product: async (id: number): Promise<PublicProduct> => {
+    const response = await apiClient.get<PublicProduct>(`/api/v1/public/products/${id}`);
     return response.data;
   },
 

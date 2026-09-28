@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -341,7 +342,10 @@ export const UsersPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('users.title')}</h1>
+            <div className="flex items-center gap-1">
+              <BackButton />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('users.title')}</h1>
+            </div>
             {!isLoading && users.length > 0 && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {t('users.totalUsers', { count: users.length })}

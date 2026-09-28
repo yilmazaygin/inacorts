@@ -1,4 +1,5 @@
 from typing import Optional, List, Tuple
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
 from app.models import Expense
@@ -54,6 +55,40 @@ class ExpenseRepository:
         items = query.offset(offset).limit(page_size).all()
         
         return items, total
+
+    def summarize(
+        self,
+        category_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Tuple[float, int]:
+        query = self.db.query(func.coalesce(func.sum(Expense.amount), 0), func.count(Expense.id))
+        if category_id:
+            query = query.filter(Expense.category_id == category_id)
+        if start_date:
+            query = query.filter(Expense.date >= start_date)
+        if end_date:
+            query = query.filter(Expense.date <= end_date)
+        total_amount, count = query.one()
+        return float(total_amount or 0), int(count or 0)
+
+    def list_for_export(
+        self,
+        category_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Expense]:
+        query = self.db.query(Expense).options(
+            joinedload(Expense.created_by_user),
+            joinedload(Expense.category),
+        )
+        if category_id:
+            query = query.filter(Expense.category_id == category_id)
+        if start_date:
+            query = query.filter(Expense.date >= start_date)
+        if end_date:
+            query = query.filter(Expense.date <= end_date)
+        return query.order_by(Expense.date.desc()).all()
     
     def create(self, data: ExpenseCreate, user_id: int) -> Expense:
         expense_data = data.model_dump()

@@ -66,6 +66,14 @@ def _migrate_products_table(db: Session) -> None:
         return
     _add_column_if_not_exists(db, "products", "image_filename", "VARCHAR(255)")
     _add_column_if_not_exists(db, "products", "image_filenames", "TEXT")
+    _add_column_if_not_exists(db, "products", "sku", "VARCHAR(100)")
+    _add_column_if_not_exists(db, "products", "show_on_site", "BOOLEAN NOT NULL DEFAULT 1")
+    try:
+        db.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_products_sku ON products (sku)"))
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.warning(f"Could not create products.sku index: {exc}")
     rows = db.execute(text(
         "SELECT id, image_filename, image_filenames FROM products"
     )).fetchall()

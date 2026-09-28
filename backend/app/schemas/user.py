@@ -89,3 +89,8 @@ class ChangePasswordRequest(BaseModel):
 
 class VerifyPasswordRequest(BaseModel):
     password: str
+
+
+class UserLookup(BaseModel):
+    id: int
+    username: str

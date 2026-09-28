@@ -23,6 +23,8 @@ class StockMovementResponse(StockMovementBase):
     updated_at: datetime
     updated_by: int
     performed_by_username: Optional[str] = None  # WHO performed this stock movement
+    product_name: Optional[str] = None
+    current_stock: Optional[int] = None
     
     class Config:
         from_attributes = True

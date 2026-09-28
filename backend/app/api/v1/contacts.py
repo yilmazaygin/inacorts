@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from typing import Optional
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.contact_service import ContactService
@@ -12,8 +12,8 @@ router = APIRouter()
 def list_contacts(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     sort: str = "id",
     order: str = "asc",
     search: Optional[str] = None

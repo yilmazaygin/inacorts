@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 from typing import Optional
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.expense_service import ExpenseService
@@ -12,6 +12,7 @@ from app.schemas.expense import (
     ExpenseHistoryResponse
 )
 from app.schemas.common import PaginatedResponse
+from app.schemas.report import ExpenseSummary
 from typing import List
 
 router = APIRouter()
@@ -22,8 +23,8 @@ router = APIRouter()
 def list_expenses(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     sort_by: str = "date",
     order: str = "desc",
     category_id: Optional[int] = None,
@@ -35,7 +36,39 @@ def list_expenses(
     Shows WHO created each expense for full audit trail.
     """
     service = ExpenseService(db)
-    return service.list_expenses(page, page_size, sort_by, order, category_id, start_date, end_date)
+    return service.list_expenses(page, page_size, sort_by, order, category_id, start_date, _end_of_day(end_date))
+
+
+def _end_of_day(value: Optional[str]) -> Optional[str]:
+    if value and len(value) <= 10:
+        return f"{value}T23:59:59"
+    return value
+
+
+@router.get("/summary", response_model=ExpenseSummary)
+def expense_summary(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    category_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+):
+    service = ExpenseService(db)
+    return service.summarize(category_id, start_date, _end_of_day(end_date))
+
+
+@router.get("/export")
+def export_expenses(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    file_format: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+    lang: str = Query("tr", pattern="^(tr|en)$"),
+    category_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+):
+    service = ExpenseService(db)
+    return service.export_expenses(file_format, lang, category_id, start_date, _end_of_day(end_date))
 
 
 @router.get("/{expense_id}", response_model=ExpenseResponse)
@@ -105,8 +138,8 @@ def get_expense_history(
 def list_expense_categories(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 100
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=100),
 ):
     """List all expense categories."""
     service = ExpenseService(db)

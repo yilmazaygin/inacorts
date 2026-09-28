@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { publicSiteApi } from '@/api/publicSite';
+import { siteLabel } from '@/utils/siteText';
+import type { SiteContent } from '@/types/site';
 
 const adminPages: Array<[string, string]> = [
   ['/admin/forgot-password', 'auth.forgotPasswordTitle'],
@@ -23,17 +25,19 @@ const adminPages: Array<[string, string]> = [
   ['/admin/my-account', 'users.myAccount'],
 ];
 
-function sectionFor(pathname: string, t: TFunction): string {
-  if (pathname === '/') return t('site.home');
-  if (pathname.startsWith('/urunler')) return t('site.products');
-  if (pathname.startsWith('/sepet')) return t('site.cart');
-  if (pathname.startsWith('/sozlesme')) return t('site.userAgreement');
-  if (pathname.startsWith('/nasil-siparis')) return t('site.howToOrder');
+function sectionFor(pathname: string, t: TFunction, site: SiteContent | null, language: string): string {
+  const copy = (key: string) => siteLabel(site, key, language, t(`site.${key}`));
+  if (pathname === '/') return copy('home');
+  if (pathname.startsWith('/urunler')) return copy('products');
+  if (pathname.startsWith('/sepet')) return copy('cart');
+  if (pathname.startsWith('/sozlesme')) return copy('userAgreement');
+  if (pathname.startsWith('/nasil-siparis')) return copy('howToOrder');
+  if (pathname === '/admin') return `${t('nav.home')} · ${copy('admin')}`;
   if (!pathname.startsWith('/admin')) return '';
 
   const match = adminPages.find(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-  const page = match ? t(match[1]) : t('site.admin');
-  return `${page} · ${t('site.admin')}`;
+  const page = match ? t(match[1]) : copy('admin');
+  return `${page} · ${copy('admin')}`;
 }
 
 function iconType(href: string): string {
@@ -48,15 +52,15 @@ function iconType(href: string): string {
 export const SiteMeta: React.FC = () => {
   const { pathname } = useLocation();
   const { t, i18n } = useTranslation();
-  const [brand, setBrand] = useState('INACORTS');
+  const [site, setSite] = useState<SiteContent | null>(null);
   const [favicon, setFavicon] = useState<string | null>(null);
 
   useEffect(() => {
     const load = () => {
       publicSiteApi.site()
-        .then((site) => {
-          setBrand(site.company_name?.trim() || 'INACORTS');
-          setFavicon(site.favicon_url ?? null);
+        .then((next) => {
+          setSite(next);
+          setFavicon(next.favicon_url ?? null);
         })
         .catch(() => undefined);
     };
@@ -66,9 +70,10 @@ export const SiteMeta: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const section = sectionFor(pathname, t);
+    const brand = site?.company_name?.trim() || 'INACORTS';
+    const section = sectionFor(pathname, t, site, i18n.language);
     document.title = section ? `${section} · ${brand}` : brand;
-  }, [pathname, brand, i18n.language, t]);
+  }, [pathname, site, i18n.language, t]);
 
   useEffect(() => {
     const href = favicon || '/favicon.svg';

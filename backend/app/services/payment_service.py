@@ -1,13 +1,15 @@
 from typing import Optional
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.order_repository import OrderRepository
 from app.schemas.payment import PaymentCreate, PaymentResponse
 from app.schemas.common import PaginatedResponse
 from app.core.exceptions import NotFoundException, BadRequestException
-from app.models import OrderStatus
+from app.models import OrderStatus, PaymentMethod
 from math import ceil
 from loguru import logger
+from app.services.spreadsheet import spreadsheet_response
 
 
 class PaymentService:
@@ -21,27 +23,26 @@ class PaymentService:
         if not payment:
             raise NotFoundException("Payment not found")
         
+        return self._to_response(payment)
+    
+    def _to_response(self, payment) -> PaymentResponse:
         response = PaymentResponse.model_validate(payment)
-        # Populate username - created_by is semantically "received_by"
         if payment.received_by_user:
             response.received_by_username = payment.received_by_user.username
-        
+        if payment.order:
+            response.order_total = payment.order.total_amount
         return response
-    
+
     def list_payments(
         self,
         page: int = 1,
         page_size: int = 20,
-        order_id: Optional[int] = None
+        order_id: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> PaginatedResponse[PaymentResponse]:
-        items, total = self.payment_repo.list_all(page, page_size, order_id)
-        
-        responses = []
-        for item in items:
-            response = PaymentResponse.model_validate(item)
-            if item.received_by_user:
-                response.received_by_username = item.received_by_user.username
-            responses.append(response)
+        items, total = self.payment_repo.list_all(page, page_size, order_id, start_date, end_date)
+        responses = [self._to_response(item) for item in items]
         
         return PaginatedResponse(
             items=responses,
@@ -74,7 +75,7 @@ class PaymentService:
         
         logger.info(f"Payment created successfully - ID: {payment.id}, Amount: {payment.amount}, Order: {order.id}")
         
-        return PaymentResponse.model_validate(payment)
+        return self._to_response(self.payment_repo.get_by_id(payment.id))
     
     def delete_payment(self, payment_id: int, user_id: int) -> None:
         payment = self.payment_repo.get_by_id(payment_id)
@@ -93,3 +94,37 @@ class PaymentService:
         order_service.recalculate_order_statuses(order_id, user_id)
         
         logger.info(f"Payment deleted successfully - ID: {payment_id}")
+
+    def export_payments(
+        self,
+        file_format: str,
+        lang: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ):
+        payments = self.payment_repo.list_for_export(None, start_date, end_date)
+        turkish = lang != "en"
+        headers = (
+            ["No", "Tarih", "Sipariş no", "Tutar", "Yöntem", "Tahsil eden", "Sipariş toplamı"]
+            if turkish else
+            ["No", "Date", "Order", "Amount", "Method", "Received by", "Order total"]
+        )
+        methods = {
+            PaymentMethod.CASH: "Nakit" if turkish else "Cash",
+            PaymentMethod.BANK_TRANSFER: "Havale/EFT" if turkish else "Bank transfer",
+            PaymentMethod.CREDIT_CARD: "Kredi kartı" if turkish else "Credit card",
+            PaymentMethod.OTHER: "Diğer" if turkish else "Other",
+        }
+        rows = []
+        for payment in payments:
+            rows.append([
+                payment.id,
+                payment.created_at.strftime("%Y-%m-%d %H:%M") if payment.created_at else "",
+                payment.order_id,
+                payment.amount,
+                methods.get(payment.method, payment.method.value),
+                payment.received_by_user.username if payment.received_by_user else "",
+                payment.order.total_amount if payment.order else "",
+            ])
+        filename = "tahsilatlar" if turkish else "payments"
+        return spreadsheet_response(filename, headers, rows, file_format)

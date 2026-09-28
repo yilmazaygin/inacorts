@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Select } from '@/components/common/Select';
@@ -12,17 +13,22 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Table } from '@/components/common/Table';
 import { Pagination } from '@/components/common/Pagination';
+import { LookupList } from '@/components/common/LookupList';
 import { stockMovementsApi } from '@/api/stockMovements';
 import { productsApi } from '@/api/products';
 import { formatDate, getErrorMessage } from '@/utils/format';
-import type { StockMovement, StockMovementCreate, Product } from '@/types/entities';
+import type { StockMovement, StockMovementCreate } from '@/types/entities';
 import { StockMovementType } from '@/types/enums';
 
 export const StockPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [productQuery, setProductQuery] = useState('');
+  const [formProductQuery, setFormProductQuery] = useState('');
+  const [filterLabel, setFilterLabel] = useState('');
+  const [selectedProductLabel, setSelectedProductLabel] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
@@ -38,21 +44,28 @@ export const StockPage: React.FC = () => {
   });
 
   useEffect(() => {
-    loadProducts();
-  }, []);
-
-  useEffect(() => {
     loadMovements();
   }, [page, productFilter]);
 
-  const loadProducts = async () => {
-    try {
-      const data = await productsApi.list({ page_size: 1000 });
-      setProducts(data.items);
-    } catch (err: any) {
-      console.error('Failed to load products:', err);
-    }
-  };
+  useEffect(() => {
+    if (searchParams.get('yeni') !== '1') return;
+    openCreateModal();
+    const next = new URLSearchParams(searchParams);
+    next.delete('yeni');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const fetchProducts = useCallback(async (query: string, pageNumber: number) => {
+    const data = await productsApi.list({ page: pageNumber, page_size: 20, search: query || undefined, sort: 'name', order: 'asc' });
+    return {
+      ...data,
+      items: data.items.map((product) => ({
+        id: product.id,
+        label: product.name,
+        detail: `${t('products.stock')}: ${product.current_stock}`,
+      })),
+    };
+  }, [t]);
 
   const loadMovements = async () => {
     try {
@@ -80,7 +93,6 @@ export const StockPage: React.FC = () => {
       setShowModal(false);
       resetForm();
       loadMovements();
-      loadProducts();
     } catch (err: any) {
       alert(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
@@ -90,10 +102,12 @@ export const StockPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      product_id: products.length > 0 ? products[0].id : 0,
+      product_id: 0,
       quantity: 0,
       type: StockMovementType.IN,
     });
+    setFormProductQuery('');
+    setSelectedProductLabel('');
   };
 
   const openCreateModal = () => {
@@ -101,13 +115,7 @@ export const StockPage: React.FC = () => {
     setShowModal(true);
   };
 
-  const getProductName = (productId: number) => {
-    return products.find((p) => p.id === productId)?.name || `#${productId}`;
-  };
-
-  const getProductStock = (productId: number) => {
-    return products.find((p) => p.id === productId)?.current_stock || 0;
-  };
+  const getProductName = (movement: StockMovement) => movement.product_name || `#${movement.product_id}`;
 
   const getTypeBadge = (type: StockMovementType) => {
     const variants: Record<StockMovementType, 'success' | 'warning' | 'info'> = {
@@ -172,7 +180,7 @@ export const StockPage: React.FC = () => {
 
   const columns = [
     { key: 'id', header: 'ID', className: 'w-20' },
-    { key: 'product', header: t('stock.product'), render: (m: StockMovement) => getProductName(m.product_id) },
+    { key: 'product', header: t('stock.product'), render: (m: StockMovement) => getProductName(m) },
     {
       key: 'quantity',
       header: t('stock.quantity'),
@@ -210,12 +218,10 @@ export const StockPage: React.FC = () => {
     {
       key: 'current_stock',
       header: t('products.currentStock'),
-      render: (m: StockMovement) => getProductStock(m.product_id),
+      render: (m: StockMovement) => m.current_stock ?? '-',
     },
     { key: 'created_at', header: t('stock.date'), render: (m: StockMovement) => formatDate(m.created_at) },
   ];
-
-  const productOptions = products.map((p) => ({ value: p.id, label: `${p.name} (${t('products.stock')}: ${p.current_stock})` }));
 
   const typeOptions = [
     { value: StockMovementType.IN, label: t('stock.typeStockIn') },
@@ -228,7 +234,10 @@ export const StockPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('stock.title')}</h1>
+            <div className="flex items-center gap-1">
+              <BackButton />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('stock.title')}</h1>
+            </div>
             <p className="text-gray-600 dark:text-gray-400 mt-1">{t('stock.subtitle')}</p>
           </div>
           <Button onClick={openCreateModal}>
@@ -240,20 +249,38 @@ export const StockPage: React.FC = () => {
         </div>
 
         <Card>
-          <div className="mb-4">
-            <Select
-              value={productFilter}
+          <div className="mb-4 space-y-2">
+            <Input
+              value={productFilter ? filterLabel : productQuery}
               onChange={(e) => {
-                setProductFilter(e.target.value ? parseInt(e.target.value) : '');
-                setPage(1);
+                setProductQuery(e.target.value);
+                if (productFilter) {
+                  setProductFilter('');
+                  setFilterLabel('');
+                  setPage(1);
+                }
               }}
-              options={productOptions}
-              placeholder={t('common.allProducts')}
+              placeholder={t('products.searchPlaceholder')}
               fullWidth
             />
+            {!productFilter && productQuery.trim() && (
+              <LookupList
+                query={productQuery}
+                selectedId={0}
+                onSelect={(item) => {
+                  setProductFilter(item.id);
+                  setFilterLabel(item.label);
+                  setProductQuery('');
+                  setPage(1);
+                }}
+                fetchPage={fetchProducts}
+                emptyLabel={t('orders.noMatches')}
+                loadMoreLabel={t('common.loadMore')}
+              />
+            )}
             {productFilter && (
               <div className="mt-2">
-                <Button variant="secondary" size="sm" onClick={() => { setProductFilter(''); setPage(1); }}>
+                <Button variant="secondary" size="sm" onClick={() => { setProductFilter(''); setFilterLabel(''); setPage(1); }}>
                   {t('common.clearFilters')}
                 </Button>
               </div>
@@ -277,14 +304,31 @@ export const StockPage: React.FC = () => {
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={t('stock.addMovement')}>
         <form onSubmit={handleCreate} className="space-y-4">
-          <Select
-            label={t('stock.product')}
-            value={formData.product_id}
-            onChange={(e) => setFormData({ ...formData, product_id: parseInt(e.target.value) })}
-            options={productOptions}
-            required
-            fullWidth
-          />
+          <div>
+            <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">{t('stock.product')}</p>
+            <Input
+              value={formProductQuery}
+              onChange={(e) => setFormProductQuery(e.target.value)}
+              placeholder={t('products.searchPlaceholder')}
+              fullWidth
+            />
+            <div className="mt-2">
+              <LookupList
+                query={formProductQuery}
+                selectedId={formData.product_id}
+                onSelect={(item) => {
+                  setSelectedProductLabel(item.label);
+                  setFormData({ ...formData, product_id: item.id });
+                }}
+                fetchPage={fetchProducts}
+                emptyLabel={t('orders.noMatches')}
+                loadMoreLabel={t('common.loadMore')}
+              />
+            </div>
+            {selectedProductLabel && (
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{selectedProductLabel}</p>
+            )}
+          </div>
           <Select
             label={t('stock.type')}
             value={formData.type}

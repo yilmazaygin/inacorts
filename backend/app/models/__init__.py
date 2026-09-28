@@ -114,6 +114,7 @@ class TagEntityType(str, enum.Enum):
     CUSTOMER = "customer"
     CONTACT = "contact"
     PRODUCT = "product"
+    ORDER = "order"
 
 
 class TagLink(Base):
@@ -149,11 +150,13 @@ class Product(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    sku = Column(String(100), nullable=True, unique=True)
     description = Column(Text, nullable=True)
     image_filename = Column(String(255), nullable=True)
     image_filenames = Column(Text, nullable=True)
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
     list_price = Column(Float, default=0.0, nullable=False)
+    show_on_site = Column(Boolean, default=True, nullable=False)
     current_stock = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_by = Column(Integer, ForeignKey('users.id'), nullable=False)

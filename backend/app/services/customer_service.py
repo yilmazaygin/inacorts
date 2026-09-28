@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.repositories.customer_repository import CustomerRepository
@@ -28,9 +29,15 @@ class CustomerService:
         page_size: int = 20,
         sort_by: str = "id",
         order: str = "asc",
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        created_by: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        tag_id: Optional[int] = None,
     ) -> PaginatedResponse[CustomerResponse]:
-        items, total = self.repo.list_all(page, page_size, sort_by, order, search)
+        items, total = self.repo.list_all(
+            page, page_size, sort_by, order, search, created_by, start_date, end_date, tag_id,
+        )
         responses = []
         for item in items:
             response = CustomerResponse.model_validate(item)

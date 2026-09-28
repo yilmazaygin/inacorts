@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({ isMobileMenuOpen, onToggleMobile
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => navigate('/admin/dashboard')}
+              onClick={() => navigate('/admin')}
               className="text-xl font-bold text-primary-600 dark:text-primary-400"
             >
               {brand}

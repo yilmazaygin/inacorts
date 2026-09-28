@@ -4,9 +4,10 @@ from typing import Optional
 from app.db.session import get_db
 from app.services.user_service import UserService
 from app.schemas.user import (
-    UserCreate, UserUpdate, UserProfileUpdate, UserResponse,
+    UserCreate, UserUpdate, UserProfileUpdate, UserResponse, UserLookup,
     SecurityQuestionSetup, SecurityQuestionUpdate, ChangePasswordRequest
 )
+from app.models import User
 from app.schemas.common import PaginatedResponse
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.core.exceptions import BadRequestException, ForbiddenException
@@ -38,6 +39,18 @@ def create_user(data: UserCreate, current_user: CurrentUser, db: DatabaseSession
     _require_admin(current_user)
     user_service = UserService(db)
     return user_service.create_user(data, created_by_user_id=current_user.id)
+
+
+@router.get("/lookup", response_model=list[UserLookup])
+def lookup_users(current_user: CurrentUser, db: DatabaseSession):
+    rows = (
+        db.query(User.id, User.username)
+        .filter(User.is_active.is_(True))
+        .order_by(User.username.asc())
+        .limit(100)
+        .all()
+    )
+    return [UserLookup(id=row.id, username=row.username) for row in rows]
 
 
 # /me routes must be before /{user_id} to avoid path conflicts

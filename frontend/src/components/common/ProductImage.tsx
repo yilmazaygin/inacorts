@@ -154,7 +154,7 @@ export const ProductImageField: React.FC<ProductImageFieldProps> = ({
   );
 };
 
-export const ProductGallery: React.FC<{ urls: string[]; alt: string }> = ({ urls, alt }) => {
+export const ProductGallery: React.FC<{ urls: string[]; alt: string; className?: string; prevLabel?: string; nextLabel?: string }> = ({ urls, alt, className = 'rounded-lg', prevLabel, nextLabel }) => {
   const { t } = useTranslation();
   const scroller = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -184,7 +184,7 @@ export const ProductGallery: React.FC<{ urls: string[]; alt: string }> = ({ urls
       <div
         ref={scroller}
         onScroll={onScroll}
-        className="flex aspect-square snap-x snap-mandatory overflow-x-auto overflow-y-hidden rounded-lg scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className={`flex aspect-square snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
       >
         {slides.map((url, slideIndex) => (
           <img
@@ -200,7 +200,7 @@ export const ProductGallery: React.FC<{ urls: string[]; alt: string }> = ({ urls
         <>
           <button
             type="button"
-            aria-label={t('site.prevImage')}
+            aria-label={prevLabel || t('site.prevImage')}
             onClick={() => go(index - 1)}
             className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/70 text-lg text-white"
           >
@@ -208,7 +208,7 @@ export const ProductGallery: React.FC<{ urls: string[]; alt: string }> = ({ urls
           </button>
           <button
             type="button"
-            aria-label={t('site.nextImage')}
+            aria-label={nextLabel || t('site.nextImage')}
             onClick={() => go(index + 1)}
             className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/70 text-lg text-white"
           >

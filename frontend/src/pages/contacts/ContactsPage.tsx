@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -162,7 +163,10 @@ export const ContactsPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('contacts.title')}</h1>
+            <div className="flex items-center gap-1">
+              <BackButton />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('contacts.title')}</h1>
+            </div>
             {!isLoading && contacts.length > 0 && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {t('contacts.totalContacts', { count: contacts.length })}

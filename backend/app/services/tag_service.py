@@ -1,5 +1,6 @@
 from typing import Optional
 from sqlalchemy.orm import Session
+from app.models import TagEntityType
 from app.repositories.tag_repository import TagRepository
 from app.schemas.tag import TagCreate, TagResponse, TagLinkRequest, TagUnlinkRequest
 from app.schemas.common import PaginatedResponse
@@ -33,6 +34,9 @@ class TagService:
             total_pages=ceil(total / page_size) if total > 0 else 0
         )
     
+    def list_for_entity(self, entity_type: TagEntityType, entity_id: int) -> list[TagResponse]:
+        return [TagResponse.model_validate(tag) for tag in self.repo.list_for_entity(entity_type, entity_id)]
+
     def create_tag(self, data: TagCreate, user_id: int) -> TagResponse:
         existing = self.repo.get_by_name(data.name)
         if existing:

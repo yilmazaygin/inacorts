@@ -23,6 +23,8 @@ from app.api.v1 import (
     notes,
     tags,
     expenses,
+    exports,
+    reports,
     users,
     public,
     site_settings,
@@ -169,6 +171,8 @@ app.include_router(payments.router, prefix="/api/v1/payments", tags=["Payments"]
 app.include_router(notes.router, prefix="/api/v1/notes", tags=["Notes"])
 app.include_router(tags.router, prefix="/api/v1/tags", tags=["Tags"])
 app.include_router(expenses.router, prefix="/api/v1/expenses", tags=["Expenses"])
+app.include_router(exports.router, prefix="/api/v1/exports", tags=["Exports"])
+app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(public.router, prefix="/api/v1/public", tags=["Public site"])
 app.include_router(site_settings.router, prefix="/api/v1/site-settings", tags=["Site settings"])

@@ -13,11 +13,13 @@ import { CartPage } from './pages/site/CartPage';
 import { SiteSettingsPage } from './pages/settings/SiteSettingsPage';
 import { SalesSettingsPage } from './pages/settings/SalesSettingsPage';
 import { UserAgreementPage } from './pages/settings/UserAgreementPage';
+import { DataExportsPage } from './pages/settings/DataExportsPage';
 import { AgreementPage } from './pages/site/AgreementPage';
 import { HowToOrderPage } from './pages/site/HowToOrderPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { DashboardPage } from './pages/dashboard/DashboardPage';
+import { QuickActionsPage } from './pages/home/QuickActionsPage';
 import { CustomersPage } from './pages/customers/CustomersPage';
 import { CustomerDetailPage } from './pages/customers/CustomerDetailPage';
 import { ContactsPage } from './pages/contacts/ContactsPage';
@@ -35,16 +37,16 @@ import { UsersPage } from './pages/users/UsersPage';
 import { MyAccountPage } from './pages/users/MyAccountPage';
 
 // Protected Route Component – redirects unauthenticated users to /admin/login
+const RouteSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <LoadingSpinner size="lg" />
+  </div>
+);
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
+  if (isLoading) return <RouteSpinner />;
 
   if (!isAuthenticated) {
     return <Navigate to="/admin/login" replace />;
@@ -53,20 +55,32 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Admin Public Route Component – redirect already-authenticated users to /admin/dashboard
+const StaffRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <RouteSpinner />;
+  if (user?.is_sales_consultant && !user.is_admin) {
+    return <Navigate to="/admin" replace />;
+  }
+  return <>{children}</>;
+};
+
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <RouteSpinner />;
+  if (!user?.is_admin) {
+    return <Navigate to="/admin" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Admin Public Route Component – redirect already-authenticated users to the admin home
 const AdminPublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
+  if (isLoading) return <RouteSpinner />;
 
   if (isAuthenticated) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/admin" replace />;
   }
 
   return <>{children}</>;
@@ -88,12 +102,11 @@ function App() {
           <Route path="/nasil-siparis" element={<HowToOrderPage />} />
 
           {/* Admin sub-application routes */}
-          {/* Admin root redirects to dashboard (protected) */}
           <Route
             path="/admin"
             element={
               <ProtectedRoute>
-                <Navigate to="/admin/dashboard" replace />
+                <QuickActionsPage />
               </ProtectedRoute>
             }
           />
@@ -161,7 +174,7 @@ function App() {
             path="/admin/products"
             element={
               <ProtectedRoute>
-                <ProductsPage />
+                <StaffRoute><ProductsPage /></StaffRoute>
               </ProtectedRoute>
             }
           />
@@ -169,7 +182,7 @@ function App() {
             path="/admin/products/:id"
             element={
               <ProtectedRoute>
-                <ProductDetailPage />
+                <StaffRoute><ProductDetailPage /></StaffRoute>
               </ProtectedRoute>
             }
           />
@@ -193,7 +206,7 @@ function App() {
             path="/admin/payments"
             element={
               <ProtectedRoute>
-                <PaymentsPage />
+                <StaffRoute><PaymentsPage /></StaffRoute>
               </ProtectedRoute>
             }
           />
@@ -201,7 +214,7 @@ function App() {
             path="/admin/stock"
             element={
               <ProtectedRoute>
-                <StockPage />
+                <StaffRoute><StockPage /></StaffRoute>
               </ProtectedRoute>
             }
           />
@@ -209,7 +222,7 @@ function App() {
             path="/admin/expenses"
             element={
               <ProtectedRoute>
-                <ExpensesPage />
+                <StaffRoute><ExpensesPage /></StaffRoute>
               </ProtectedRoute>
             }
           />
@@ -217,7 +230,7 @@ function App() {
             path="/admin/financials"
             element={
               <ProtectedRoute>
-                <FinancialsPage />
+                <StaffRoute><FinancialsPage /></StaffRoute>
               </ProtectedRoute>
             }
           />
@@ -225,7 +238,7 @@ function App() {
             path="/admin/users"
             element={
               <ProtectedRoute>
-                <UsersPage />
+                <AdminRoute><UsersPage /></AdminRoute>
               </ProtectedRoute>
             }
           />
@@ -233,7 +246,7 @@ function App() {
             path="/admin/sales-settings"
             element={
               <ProtectedRoute>
-                <SalesSettingsPage />
+                <AdminRoute><SalesSettingsPage /></AdminRoute>
               </ProtectedRoute>
             }
           />
@@ -241,7 +254,7 @@ function App() {
             path="/admin/site-settings"
             element={
               <ProtectedRoute>
-                <SiteSettingsPage />
+                <AdminRoute><SiteSettingsPage /></AdminRoute>
               </ProtectedRoute>
             }
           />
@@ -249,7 +262,15 @@ function App() {
             path="/admin/sozlesme"
             element={
               <ProtectedRoute>
-                <UserAgreementPage />
+                <AdminRoute><UserAgreementPage /></AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/veriler"
+            element={
+              <ProtectedRoute>
+                <AdminRoute><DataExportsPage /></AdminRoute>
               </ProtectedRoute>
             }
           />
@@ -266,8 +287,7 @@ function App() {
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />
           <Route path="/forgot-password" element={<Navigate to="/admin/forgot-password" replace />} />
 
-          {/* Catch all unknown routes under /admin → redirect to /admin/dashboard */}
-          <Route path="/admin/*" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
 
           {/* Catch all other unknown routes → redirect to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />

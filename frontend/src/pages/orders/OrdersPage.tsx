@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Select } from '@/components/common/Select';
@@ -12,23 +13,35 @@ import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Table } from '@/components/common/Table';
 import { Pagination } from '@/components/common/Pagination';
 import { Badge } from '@/components/common/Badge';
+import { RecordFilters, emptyRecordFilters } from '@/components/common/RecordFilters';
+import { LookupList, type LookupItem } from '@/components/common/LookupList';
 import { ordersApi } from '@/api/orders';
 import { customersApi } from '@/api/customers';
 import { productsApi } from '@/api/products';
+import { categoriesApi } from '@/api/categories';
 import { formatCurrency, formatDate, getErrorMessage } from '@/utils/format';
-import type { Order, OrderCreate, OrderItemCreate, Customer, Product } from '@/types/entities';
+import type { Order, OrderCreate, OrderItemCreate, Category } from '@/types/entities';
 import { OrderStatus, PaymentStatus, DeliveryStatus } from '@/types/enums';
 
 export const OrdersPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [categoryTotalPages, setCategoryTotalPages] = useState(1);
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [productQuery, setProductQuery] = useState('');
+  const [productCategoryId, setProductCategoryId] = useState<number | ''>('');
+  const [selectedCustomerName, setSelectedCustomerName] = useState('');
+  const [selectedProductName, setSelectedProductName] = useState('');
+  const [itemNames, setItemNames] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [recordFilters, setRecordFilters] = useState(emptyRecordFilters());
   const [statusFilter, setStatusFilter] = useState<OrderStatus | ''>('');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | ''>('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryStatus | ''>('');
@@ -47,25 +60,70 @@ export const OrdersPage: React.FC = () => {
   });
 
   useEffect(() => {
-    loadCustomersAndProducts();
-  }, []);
+    if (!showCreateModal) return;
+    categoriesApi.list({ page: 1, page_size: 100, sort: 'name', order: 'asc' })
+      .then((data) => {
+        setCategories(data.items);
+        setCategoryPage(1);
+        setCategoryTotalPages(data.total_pages);
+      })
+      .catch(() => setCategories([]));
+  }, [showCreateModal]);
 
   useEffect(() => {
     loadOrders();
-  }, [page, statusFilter, paymentFilter, deliveryFilter]);
+  }, [page, statusFilter, paymentFilter, deliveryFilter, recordFilters]);
 
-  const loadCustomersAndProducts = async () => {
-    try {
-      const [customersData, productsData] = await Promise.all([
-        customersApi.list({ page_size: 1000 }),
-        productsApi.list({ page_size: 1000 }),
-      ]);
-      setCustomers(customersData.items);
-      setProducts(productsData.items);
-    } catch (err: any) {
-      console.error('Failed to load customers/products:', err);
-    }
+  useEffect(() => {
+    if (searchParams.get('yeni') !== '1') return;
+    resetForm();
+    setShowCreateModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('yeni');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const loadMoreCategories = async () => {
+    const next = categoryPage + 1;
+    const data = await categoriesApi.list({ page: next, page_size: 100, sort: 'name', order: 'asc' });
+    setCategories((current) => {
+      const seen = new Set(current.map((category) => category.id));
+      return [...current, ...data.items.filter((category) => !seen.has(category.id))];
+    });
+    setCategoryPage(data.page);
+    setCategoryTotalPages(data.total_pages);
   };
+
+  const fetchCustomers = useCallback(async (query: string, pageNumber: number) => {
+    const data = await customersApi.list({ page: pageNumber, page_size: 20, search: query || undefined });
+    return {
+      ...data,
+      items: data.items.map((customer): LookupItem => ({
+        id: customer.id,
+        label: customer.name,
+        detail: customer.phone || customer.email || undefined,
+      })),
+    };
+  }, []);
+
+  const fetchProducts = useCallback(async (query: string, pageNumber: number) => {
+    const data = await productsApi.list({
+      page: pageNumber,
+      page_size: 20,
+      search: query || undefined,
+      category_id: productCategoryId || undefined,
+      sort: 'name',
+      order: 'asc',
+    });
+    return {
+      ...data,
+      items: data.items.map((product): LookupItem => ({
+        id: product.id,
+        label: product.name,
+        detail: formatCurrency(product.list_price),
+      })),
+    };
+  }, [productCategoryId]);
 
   const loadOrders = async () => {
     try {
@@ -77,6 +135,10 @@ export const OrdersPage: React.FC = () => {
         order_status: statusFilter || undefined,
         payment_status: paymentFilter || undefined,
         delivery_status: deliveryFilter || undefined,
+        start_date: recordFilters.startDate || undefined,
+        end_date: recordFilters.endDate || undefined,
+        created_by: recordFilters.createdBy ? Number(recordFilters.createdBy) : undefined,
+        tag_id: recordFilters.tagId ? Number(recordFilters.tagId) : undefined,
       });
       setOrders(data.items);
       setTotalPages(data.total_pages);
@@ -93,6 +155,7 @@ export const OrdersPage: React.FC = () => {
       return;
     }
 
+    setItemNames((current) => ({ ...current, [newItem.product_id]: selectedProductName }));
     setFormData({
       ...formData,
       items: [...formData.items, { ...newItem }],
@@ -111,6 +174,11 @@ export const OrdersPage: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.customer_id) {
+      alert(t('orders.selectCustomer'));
+      return;
+    }
+
     if (formData.items.length === 0) {
       alert(t('common.addAtLeastOneItem'));
       return;
@@ -131,8 +199,14 @@ export const OrdersPage: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ customer_id: customers.length > 0 ? customers[0].id : 0, items: [] });
+    setFormData({ customer_id: 0, items: [] });
     setNewItem({ product_id: 0, quantity: 1, unit_price: 0 });
+    setCustomerQuery('');
+    setProductQuery('');
+    setProductCategoryId('');
+    setSelectedCustomerName('');
+    setSelectedProductName('');
+    setItemNames({});
   };
 
   const getStatusBadge = (status: OrderStatus) => {
@@ -177,28 +251,19 @@ export const OrdersPage: React.FC = () => {
     return <Badge variant={variants[status]} size="sm">{labels[status]}</Badge>;
   };
 
-  const getCustomerName = (customerId: number) => {
-    return customers.find((c) => c.id === customerId)?.name || `#${customerId}`;
-  };
+  const getProductName = (productId: number) => itemNames[productId] || `#${productId}`;
 
-  const getProductName = (productId: number) => {
-    return products.find((p) => p.id === productId)?.name || `#${productId}`;
-  };
-
-  const getProductPrice = (productId: number) => {
-    return products.find((p) => p.id === productId)?.list_price || 0;
-  };
-
-  const handleProductSelect = (productId: number) => {
-    const price = getProductPrice(productId);
-    setNewItem({ ...newItem, product_id: productId, unit_price: price });
+  const handleProductSelect = async (item: LookupItem) => {
+    setSelectedProductName(item.label);
+    const product = await productsApi.get(item.id);
+    setNewItem({ ...newItem, product_id: item.id, unit_price: product.list_price });
   };
 
   const totalAmount = formData.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
 
   const columns = [
     { key: 'id', header: t('orders.orderNumber'), className: 'w-24' },
-    { key: 'customer', header: t('orders.customer'), render: (o: Order) => getCustomerName(o.customer_id) },
+    { key: 'customer', header: t('orders.customer'), render: (o: Order) => o.customer_name || `#${o.customer_id}` },
     { key: 'items', header: t('orders.items'), render: (o: Order) => t('orders.itemCount', { count: o.items.length }) },
     { key: 'total_amount', header: t('orders.total'), render: (o: Order) => formatCurrency(o.total_amount) },
     { key: 'status', header: t('orders.status'), render: (o: Order) => getStatusBadge(o.order_status) },
@@ -215,8 +280,10 @@ export const OrdersPage: React.FC = () => {
     { key: 'created_at', header: t('orders.date'), render: (o: Order) => formatDate(o.created_at) },
   ];
 
-  const customerOptions = customers.map((c) => ({ value: c.id, label: c.name }));
-  const productOptions = products.map((p) => ({ value: p.id, label: `${p.name} - ${formatCurrency(p.list_price)}` }));
+  const categoryOptions = [
+    { value: '', label: t('products.allCategories') },
+    ...categories.map((category) => ({ value: category.id, label: category.name })),
+  ];
 
   const statusOptions = [
     { value: OrderStatus.OPEN, label: t('orders.statusOpen') },
@@ -240,7 +307,10 @@ export const OrdersPage: React.FC = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('orders.title')}</h1>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('orders.title')}</h1>
+          </div>
           <Button onClick={() => { resetForm(); setShowCreateModal(true); }}>
             <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -274,7 +344,14 @@ export const OrdersPage: React.FC = () => {
             />
           </div>
 
-          {(statusFilter || paymentFilter || deliveryFilter) && (
+          <div className="mb-4">
+            <RecordFilters
+              value={recordFilters}
+              onChange={(next) => { setRecordFilters(next); setPage(1); }}
+            />
+          </div>
+
+          {(statusFilter || paymentFilter || deliveryFilter || recordFilters.createdBy || recordFilters.tagId || recordFilters.startDate || recordFilters.endDate) && (
             <div className="mb-4">
               <Button
                 variant="secondary"
@@ -283,6 +360,7 @@ export const OrdersPage: React.FC = () => {
                   setStatusFilter('');
                   setPaymentFilter('');
                   setDeliveryFilter('');
+                  setRecordFilters(emptyRecordFilters());
                   setPage(1);
                 }}
               >
@@ -314,93 +392,154 @@ export const OrdersPage: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title={t('orders.createOrder')}
-        size="lg"
+        size="xl"
       >
         <form onSubmit={handleCreate} className="space-y-6">
-          <Select
-            label={t('orders.customer')}
-            value={formData.customer_id}
-            onChange={(e) => setFormData({ ...formData, customer_id: parseInt(e.target.value) })}
-            options={customerOptions}
-            required
-            fullWidth
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('orders.customer')} <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-2">
+              <Input
+                value={customerQuery}
+                onChange={(e) => setCustomerQuery(e.target.value)}
+                placeholder={t('customers.searchPlaceholder')}
+                fullWidth
+                autoComplete="off"
+              />
+              <LookupList
+                query={customerQuery}
+                selectedId={formData.customer_id}
+                onSelect={(customer) => {
+                  setSelectedCustomerName(customer.label);
+                  setFormData({ ...formData, customer_id: customer.id });
+                }}
+                fetchPage={fetchCustomers}
+                emptyLabel={t('orders.noMatches')}
+                loadMoreLabel={t('common.loadMore')}
+              />
+              {selectedCustomerName && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {t('orders.selected')}: <span className="font-medium text-gray-900 dark:text-gray-100">{selectedCustomerName}</span>
+                </p>
+              )}
+            </div>
+          </div>
 
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-4">{t('orders.orderItems')}</h3>
             
             <div className="space-y-3 mb-4">
-              <Select
-                label={t('common.product')}
-                value={newItem.product_id}
-                onChange={(e) => handleProductSelect(parseInt(e.target.value))}
-                options={productOptions}
-                placeholder={t('common.selectProduct')}
-                fullWidth
-              />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Select
+                    label={t('products.category')}
+                    value={productCategoryId}
+                    onChange={(e) => setProductCategoryId(e.target.value ? parseInt(e.target.value) : '')}
+                    options={categoryOptions}
+                    fullWidth
+                  />
+                  {categoryPage < categoryTotalPages && (
+                    <button type="button" className="mt-1 text-sm text-primary-700 dark:text-primary-300" onClick={loadMoreCategories}>
+                      {t('common.loadMore')}
+                    </button>
+                  )}
+                </div>
                 <Input
-                  label={t('common.quantity')}
-                  type="number"
-                  min="1"
-                  value={newItem.quantity}
-                  onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) })}
+                  label={t('common.search')}
+                  value={productQuery}
+                  onChange={(e) => setProductQuery(e.target.value)}
+                  placeholder={t('products.searchPlaceholder')}
                   fullWidth
-                />
-                <Input
-                  label={t('common.unitPrice')}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newItem.unit_price}
-                  onChange={(e) => setNewItem({ ...newItem, unit_price: parseFloat(e.target.value) })}
-                  fullWidth
+                  autoComplete="off"
                 />
               </div>
-              <Button type="button" onClick={handleAddItem} variant="secondary" size="sm">
-                {t('common.addItem')}
-              </Button>
+              <div>
+                <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {t('common.product')} <span className="text-red-500">*</span>
+                </p>
+                <LookupList
+                  query={productQuery}
+                  selectedId={newItem.product_id}
+                  onSelect={handleProductSelect}
+                  fetchPage={fetchProducts}
+                  emptyLabel={t('orders.noMatches')}
+                  loadMoreLabel={t('common.loadMore')}
+                  reloadKey={productCategoryId}
+                />
+              </div>
+              {selectedProductName && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {t('orders.selected')}: <span className="font-medium text-gray-900 dark:text-gray-100">{selectedProductName}</span>
+                  {' · '}
+                  {formatCurrency(newItem.unit_price)}
+                </p>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="grid flex-1 grid-cols-2 gap-3">
+                  <Input
+                    label={t('common.quantity')}
+                    type="number"
+                    min="1"
+                    value={newItem.quantity}
+                    onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) })}
+                    required
+                    fullWidth
+                  />
+                  <Input
+                    label={t('common.unitPrice')}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newItem.unit_price}
+                    onChange={(e) => setNewItem({ ...newItem, unit_price: parseFloat(e.target.value) })}
+                    required
+                    fullWidth
+                  />
+                </div>
+                <Button type="button" onClick={handleAddItem} variant="secondary">
+                  {t('common.addItem')}
+                </Button>
+              </div>
             </div>
 
             {formData.items.length > 0 ? (
-              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">{t('common.product')}</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">{t('common.quantity')}</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">{t('common.price')}</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">{t('common.total')}</th>
-                      <th className="px-4 py-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {formData.items.map((item, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-200">{getProductName(item.product_id)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-200">{item.quantity}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-200">{formatCurrency(item.unit_price)}</td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-200">{formatCurrency(item.quantity * item.unit_price)}</td>
-                        <td className="px-4 py-2 text-sm">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(index)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            {t('common.remove')}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <td colSpan={3} className="px-4 py-2 text-sm font-medium text-right text-gray-900 dark:text-gray-200">{t('common.total')}:</td>
-                      <td className="px-4 py-2 text-sm font-bold text-gray-900 dark:text-gray-200">{formatCurrency(totalAmount)}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
+              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {formData.items.map((item, index) => {
+                    const lineTotal = item.quantity * item.unit_price;
+                    const name = getProductName(item.product_id);
+                    return (
+                      <li key={index} className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100" title={name}>
+                            {name}
+                          </p>
+                          <p className="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                            {item.quantity} × {formatCurrency(item.unit_price)}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">
+                          {formatCurrency(lineTotal)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(index)}
+                          aria-label={t('common.remove')}
+                          className="shrink-0 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-700/60">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('common.total')}</span>
+                  <span className="text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(totalAmount)}</span>
+                </div>
               </div>
             ) : (
               <p className="text-center text-gray-500 dark:text-gray-400 py-8 border border-gray-200 dark:border-gray-700 rounded-lg">

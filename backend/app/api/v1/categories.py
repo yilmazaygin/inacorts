@@ -1,4 +1,5 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, Query, UploadFile
+from typing import Optional
 from app.core.exceptions import BadRequestException
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.category_service import CategoryService
@@ -12,13 +13,14 @@ router = APIRouter()
 def list_categories(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     sort: str = "id",
-    order: str = "asc"
+    order: str = "asc",
+    search: Optional[str] = None,
 ):
     service = CategoryService(db)
-    return service.list_categories(page, page_size, sort, order)
+    return service.list_categories(page, page_size, sort, order, search)
 
 
 @router.post("", response_model=CategoryResponse)

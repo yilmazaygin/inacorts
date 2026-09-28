@@ -208,27 +208,33 @@ export interface CategoryUpdate {
 // Product
 export interface Product extends BaseEntity {
   name: string;
+  sku?: string | null;
   description?: string;
   image_url?: string | null;
   image_urls?: string[];
   category_id: number;
   list_price: number;
+  show_on_site: boolean;
   current_stock: number;
   created_by_username?: string;
 }
 
 export interface ProductCreate {
   name: string;
+  sku?: string;
   description?: string;
   category_id: number;
   list_price: number;
+  show_on_site?: boolean;
 }
 
 export interface ProductUpdate {
   name?: string;
+  sku?: string | null;
   description?: string;
   category_id?: number;
   list_price?: number;
+  show_on_site?: boolean;
 }
 
 // Stock Movement
@@ -239,6 +245,8 @@ export interface StockMovement extends BaseEntity {
   reason?: string;
   related_order_id?: number;
   performed_by_username?: string; // WHO performed this stock movement
+  product_name?: string;
+  current_stock?: number;
 }
 
 export interface StockMovementCreate {
@@ -256,6 +264,7 @@ export interface OrderItem extends BaseEntity {
   quantity: number;
   delivered_quantity: number;
   unit_price: number;
+  product_name?: string;
 }
 
 export interface OrderItemCreate {
@@ -272,6 +281,8 @@ export interface Order extends BaseEntity {
   delivery_status: DeliveryStatus;
   order_status: OrderStatus;
   created_by_username?: string; // WHO created this order
+  customer_name?: string;
+  amount_paid?: number;
   items: OrderItem[];
 }
 
@@ -312,6 +323,7 @@ export interface Payment extends BaseEntity {
   amount: number;
   method: PaymentMethod;
   received_by_username?: string; // WHO collected this payment
+  order_total?: number;
 }
 
 export interface PaymentCreate {

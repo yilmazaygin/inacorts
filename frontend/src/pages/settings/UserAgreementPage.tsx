@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { TextArea } from '@/components/common/TextArea';
 import { Button } from '@/components/common/Button';
@@ -51,13 +52,17 @@ export const UserAgreementPage: React.FC = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('site.userAgreement')}</h1>
+        <div className="flex items-center gap-1">
+          <BackButton />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('site.userAgreement')}</h1>
+        </div>
         {!form && !error && <LoadingSpinner size="lg" />}
         {error && <p className="text-sm text-red-600">{error}</p>}
         {form && (
           <>
             <form onSubmit={handleSave} className="space-y-6">
               <p className="text-sm text-gray-500">{t('site.lastEdited', { date: formatDateTime(form.updated_at) })}</p>
+            <p className="text-sm text-gray-500">{t('site.agreementFormatHint')}</p>
               <div className="grid gap-6 lg:grid-cols-2">
                 <Card title={t('site.turkish')}>
                   <TextArea

@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import Optional
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.repositories.product_repository import ProductRepository
 from app.repositories.stock_movement_repository import StockMovementRepository
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas.product import BulkPriceUpdate, ProductCreate, ProductUpdate, ProductResponse
 from app.schemas.stock_movement import StockMovementCreate, StockMovementResponse
 from app.schemas.common import PaginatedResponse
 from app.core.exceptions import NotFoundException, BadRequestException
@@ -54,9 +56,17 @@ class ProductService:
         sort_by: str = "id",
         order: str = "asc",
         search: Optional[str] = None,
-        category_id: Optional[int] = None
+        category_id: Optional[int] = None,
+        created_by: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        tag_id: Optional[int] = None,
+        show_on_site: Optional[bool] = None,
     ) -> PaginatedResponse[ProductResponse]:
-        items, total = self.product_repo.list_all(page, page_size, sort_by, order, search, category_id)
+        items, total = self.product_repo.list_all(
+            page, page_size, sort_by, order, search, category_id,
+            created_by, start_date, end_date, tag_id, show_on_site,
+        )
         responses = [self._to_response(item) for item in items]
         return PaginatedResponse(
             items=responses,
@@ -67,7 +77,11 @@ class ProductService:
         )
     
     def create_product(self, data: ProductCreate, user_id: int) -> ProductResponse:
-        product = self.product_repo.create(data, user_id)
+        try:
+            product = self.product_repo.create(data, user_id)
+        except IntegrityError:
+            self.db.rollback()
+            raise BadRequestException("Stock code already exists")
         logger.info(f"Product {product.id} created by user {user_id}")
         return self._to_response(product)
     
@@ -78,9 +92,22 @@ class ProductService:
             raise NotFoundException("Product not found")
         
         logger.info(f"Updating product ID: {product_id} (by user ID: {user_id})")
-        product = self.product_repo.update(product, data, user_id)
-        logger.info(f"Product updated successfully - ID: {product.id}")
-        return self._to_response(product)
+        try:
+            updated = self.product_repo.update(product, data, user_id)
+        except IntegrityError:
+            self.db.rollback()
+            raise BadRequestException("Stock code already exists")
+        logger.info(f"Product updated successfully - ID: {updated.id}")
+        return self._to_response(updated)
+
+    def bulk_update_prices(self, data: BulkPriceUpdate, user_id: int) -> dict:
+        ids = list(dict.fromkeys(data.product_ids))
+        if not ids:
+            raise BadRequestException("Select at least one product")
+        if len(ids) > 100:
+            raise BadRequestException("Update at most 100 products at once")
+        updated = self.product_repo.bulk_adjust_price(ids, data.mode, data.value, user_id)
+        return {"updated": updated}
 
     def set_product_image(self, product_id: int, data: bytes, user_id: int) -> ProductResponse:
         product = self.product_repo.get_by_id(product_id)

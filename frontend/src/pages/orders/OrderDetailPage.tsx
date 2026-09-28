@@ -11,14 +11,16 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Badge } from '@/components/common/Badge';
 import { NotesPanel } from '@/components/common/NotesPanel';
+import { Pagination } from '@/components/common/Pagination';
+import { OrderSlip } from '@/components/orders/OrderSlip';
+import { TagEditor } from '@/components/common/TagEditor';
 import { ordersApi } from '@/api/orders';
 import { orderDeliveriesApi } from '@/api/orderDeliveries';
 import { paymentsApi } from '@/api/payments';
 import { customersApi } from '@/api/customers';
-import { productsApi } from '@/api/products';
 import { formatCurrency, formatDate, getErrorMessage } from '@/utils/format';
-import type { Order, Payment, PaymentCreate, Customer, Product, OrderDelivery } from '@/types/entities';
-import { OrderStatus, PaymentStatus, DeliveryStatus, PaymentMethod, EntityType } from '@/types/enums';
+import type { Order, Payment, PaymentCreate, Customer, OrderDelivery } from '@/types/entities';
+import { OrderStatus, PaymentStatus, DeliveryStatus, PaymentMethod, EntityType, TagEntityType } from '@/types/enums';
 
 export const OrderDetailPage: React.FC = () => {
   const { t } = useTranslation();
@@ -28,7 +30,8 @@ export const OrderDetailPage: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [deliveries, setDeliveries] = useState<OrderDelivery[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentPages, setPaymentPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -47,27 +50,27 @@ export const OrderDetailPage: React.FC = () => {
     if (id) {
       loadOrderData();
     }
-  }, [id]);
+  }, [id, paymentPage]);
 
   const loadOrderData = async () => {
     try {
-      setIsLoading(true);
+      if (!order) setIsLoading(true);
       setError('');
       const orderId = parseInt(id!);
 
       const orderData = await ordersApi.get(orderId);
-      const paymentsData = await paymentsApi.list({ order_id: orderId, page_size: 1000 });
+      const paymentsData = await paymentsApi.list({ order_id: orderId, page: paymentPage, page_size: 20 });
       const deliveriesData = await orderDeliveriesApi.list(orderId);
       const customerData = await customersApi.get(orderData.customer_id);
-      const productsData = await productsApi.list({ page_size: 1000 });
 
       setOrder(orderData);
       setPayments(paymentsData.items);
+      setPaymentPages(paymentsData.total_pages);
       setDeliveries(deliveriesData);
       setCustomer(customerData);
-      setProducts(productsData.items);
 
-      const remaining = orderData.total_amount - paymentsData.items.reduce((sum, p) => sum + p.amount, 0);
+      const paidSoFar = orderData.amount_paid ?? paymentsData.items.reduce((sum, p) => sum + p.amount, 0);
+      const remaining = orderData.total_amount - paidSoFar;
       setPaymentFormData({
         order_id: orderId,
         amount: Math.max(0, remaining),
@@ -129,11 +132,9 @@ export const OrderDetailPage: React.FC = () => {
     setShowDeliveryModal(true);
   };
 
-  const getProductName = (productId: number) => {
-    return products.find((p) => p.id === productId)?.name || `#${productId}`;
-  };
+  const getProductName = (productId: number, productName?: string) => productName || `#${productId}`;
 
-  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = order?.amount_paid ?? payments.reduce((sum, p) => sum + p.amount, 0);
   const remainingAmount = order ? order.total_amount - totalPaid : 0;
 
   if (isLoading) {
@@ -174,7 +175,7 @@ export const OrderDetailPage: React.FC = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between print:hidden">
           <div className="flex items-center space-x-4">
             <Button variant="ghost" onClick={() => navigate('/admin/orders')}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -196,14 +197,22 @@ export const OrderDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
-          {order.order_status === OrderStatus.OPEN && (
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => window.print()}>
+              {t('orders.printSlip')}
+            </Button>
+            {order.order_status === OrderStatus.OPEN && (
             <Button variant="danger" onClick={handleCancelOrder}>
               {t('common.cancelOrder')}
             </Button>
-          )}
+            )}
+          </div>
         </div>
+        <Card title={t('common.tag')} className="print:hidden">
+          <TagEditor entityType={TagEntityType.ORDER} entityId={order.id} />
+        </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
           <div className="lg:col-span-2 space-y-6">
             <Card title={t('orders.orderDetails')}>
               <div className="space-y-3">
@@ -256,7 +265,7 @@ export const OrderDetailPage: React.FC = () => {
                       const remaining = item.quantity - item.delivered_quantity;
                       return (
                         <tr key={item.id}>
-                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-200">{getProductName(item.product_id)}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-200">{getProductName(item.product_id, item.product_name)}</td>
                           <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-200">{item.quantity}</td>
                           <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-200">
                             <span className={item.delivered_quantity === item.quantity ? 'text-green-600 dark:text-green-400 font-medium' : ''}>
@@ -376,6 +385,7 @@ export const OrderDetailPage: React.FC = () => {
                   ))}
                 </div>
               )}
+              <Pagination currentPage={paymentPage} totalPages={paymentPages} onPageChange={setPaymentPage} />
             </Card>
 
             {/* Order Notes */}
@@ -385,6 +395,8 @@ export const OrderDetailPage: React.FC = () => {
             />
           </div>
         </div>
+
+        <OrderSlip order={order} customer={customer} payments={payments} paid={totalPaid} remaining={remainingAmount} />
       </div>
 
       <Modal

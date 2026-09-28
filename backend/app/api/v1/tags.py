@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from typing import List
+from fastapi import APIRouter, Query
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.tag_service import TagService
 from app.schemas.tag import TagCreate, TagResponse, TagLinkRequest, TagUnlinkRequest
 from app.schemas.common import PaginatedResponse
+from app.models import TagEntityType
 
 router = APIRouter()
 
@@ -11,8 +13,8 @@ router = APIRouter()
 def list_tags(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
 ):
     service = TagService(db)
     return service.list_tags(page, page_size)
@@ -26,6 +28,17 @@ def create_tag(
 ):
     service = TagService(db)
     return service.create_tag(data, current_user.id)
+
+
+@router.get("/links", response_model=List[TagResponse])
+def list_entity_tags(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+    entity_type: TagEntityType,
+    entity_id: int,
+):
+    service = TagService(db)
+    return service.list_for_entity(entity_type, entity_id)
 
 
 @router.delete("/{tag_id}")

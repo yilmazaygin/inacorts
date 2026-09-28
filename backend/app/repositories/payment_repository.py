@@ -1,4 +1,5 @@
 from typing import Optional, List, Tuple
+from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
 from app.models import Payment
 from app.schemas.payment import PaymentCreate
@@ -19,22 +20,38 @@ class PaymentRepository:
     def list_by_order(self, order_id: int) -> List[Payment]:
         return (
             self.db.query(Payment)
-            .options(joinedload(Payment.received_by_user))
+            .options(joinedload(Payment.received_by_user), joinedload(Payment.order))
             .filter(Payment.order_id == order_id)
             .all()
         )
     
+    def _filtered(
+        self,
+        order_id: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ):
+        query = self.db.query(Payment).options(
+            joinedload(Payment.received_by_user),
+            joinedload(Payment.order),
+        )
+        if order_id:
+            query = query.filter(Payment.order_id == order_id)
+        if start_date:
+            query = query.filter(Payment.created_at >= start_date)
+        if end_date:
+            query = query.filter(Payment.created_at <= end_date)
+        return query
+
     def list_all(
         self,
         page: int = 1,
         page_size: int = 20,
-        order_id: Optional[int] = None
+        order_id: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> Tuple[List[Payment], int]:
-        query = self.db.query(Payment).options(joinedload(Payment.received_by_user))
-        
-        if order_id:
-            query = query.filter(Payment.order_id == order_id)
-        
+        query = self._filtered(order_id, start_date, end_date)
         total = query.count()
         
         query = query.order_by(Payment.created_at.desc())
@@ -42,6 +59,14 @@ class PaymentRepository:
         items = query.offset(offset).limit(page_size).all()
         
         return items, total
+
+    def list_for_export(
+        self,
+        order_id: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Payment]:
+        return self._filtered(order_id, start_date, end_date).order_by(Payment.created_at.desc()).all()
     
     def create(self, data: PaymentCreate, user_id: int) -> Payment:
         payment = Payment(

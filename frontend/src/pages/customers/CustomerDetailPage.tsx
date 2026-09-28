@@ -1,22 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
-import { Select } from '@/components/common/Select';
+import { Pagination } from '@/components/common/Pagination';
+import { LookupList } from '@/components/common/LookupList';
 import { Modal } from '@/components/common/Modal';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Badge } from '@/components/common/Badge';
 import { NotesPanel } from '@/components/common/NotesPanel';
+import { TagEditor } from '@/components/common/TagEditor';
 import { customersApi } from '@/api/customers';
 import { contactsApi } from '@/api/contacts';
 import { ordersApi } from '@/api/orders';
 import { formatDate, formatCurrency, getErrorMessage } from '@/utils/format';
-import type { Customer, CustomerUpdate, Order, Contact } from '@/types/entities';
-import { EntityType, OrderStatus } from '@/types/enums';
+import type { Customer, CustomerUpdate, Order } from '@/types/entities';
+import { EntityType, OrderStatus, TagEntityType } from '@/types/enums';
 
 export const CustomerDetailPage: React.FC = () => {
   const { t } = useTranslation();
@@ -24,13 +26,15 @@ export const CustomerDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPages, setOrderPages] = useState(1);
+  const [contactQuery, setContactQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<CustomerUpdate>({});
   const [showContactModal, setShowContactModal] = useState(false);
-  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [selectedContactId, setSelectedContactId] = useState<number | ''>('');
   const [isContactSaving, setIsContactSaving] = useState(false);
 
@@ -38,21 +42,22 @@ export const CustomerDetailPage: React.FC = () => {
     if (id) {
       loadCustomerData();
     }
-  }, [id]);
+  }, [id, orderPage]);
 
   const loadCustomerData = async () => {
     try {
-      setIsLoading(true);
+      if (!customer) setIsLoading(true);
       setError('');
       const customerId = parseInt(id!);
       
       const [customerData, ordersData] = await Promise.all([
         customersApi.get(customerId),
-        ordersApi.list({ customer_id: customerId, page_size: 100 }),
+        ordersApi.list({ customer_id: customerId, page: orderPage, page_size: 10 }),
       ]);
 
       setCustomer(customerData);
       setOrders(ordersData.items);
+      setOrderPages(ordersData.total_pages);
       setFormData({
         name: customerData.name,
         address: customerData.address,
@@ -81,14 +86,16 @@ export const CustomerDetailPage: React.FC = () => {
     }
   };
 
-  const loadAllContacts = async () => {
-    try {
-      const data = await contactsApi.list({ page_size: 1000 });
-      setAllContacts(data.items);
-    } catch (err: any) {
-      console.error('Failed to load contacts:', err);
-    }
-  };
+  const fetchContacts = useCallback(async (query: string, pageNumber: number) => {
+    const data = await contactsApi.list({ page: pageNumber, page_size: 20, search: query || undefined });
+    const linked = new Set((customer?.contacts || []).map((contact) => contact.id));
+    return {
+      ...data,
+      items: data.items
+        .filter((contact) => !linked.has(contact.id))
+        .map((contact) => ({ id: contact.id, label: contact.name, detail: contact.phone })),
+    };
+  }, [customer]);
 
   const handleAddContact = async () => {
     if (!selectedContactId || !customer) return;
@@ -124,16 +131,11 @@ export const CustomerDetailPage: React.FC = () => {
     }
   };
 
-  const openContactModal = async () => {
-    await loadAllContacts();
+  const openContactModal = () => {
+    setContactQuery('');
     setSelectedContactId('');
     setShowContactModal(true);
   };
-
-  // Filter out contacts already linked to this customer
-  const availableContacts = allContacts.filter(
-    (c) => !(customer?.contacts || []).some((cc) => cc.id === c.id)
-  );
 
   if (isLoading) {
     return (
@@ -169,6 +171,9 @@ export const CustomerDetailPage: React.FC = () => {
             <Button onClick={() => setIsEditing(true)}>{t('customers.editCustomer')}</Button>
           )}
         </div>
+        <Card title={t('common.tag')}>
+          <TagEditor entityType={TagEntityType.CUSTOMER} entityId={customer.id} />
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -339,6 +344,7 @@ export const CustomerDetailPage: React.FC = () => {
                   ))}
                 </div>
               )}
+              <Pagination currentPage={orderPage} totalPages={orderPages} onPageChange={setOrderPage} />
             </Card>
           </div>
 
@@ -358,32 +364,32 @@ export const CustomerDetailPage: React.FC = () => {
         title={t('customers.addContact')}
       >
         <div className="space-y-4">
-          {availableContacts.length === 0 ? (
-            <p className="text-center text-gray-500 dark:text-gray-400 py-4 text-sm">{t('customers.noAvailableContacts')}</p>
-          ) : (
-            <>
-              <Select
-                label={t('contacts.name')}
-                value={selectedContactId}
-                onChange={(e) => setSelectedContactId(e.target.value ? parseInt(e.target.value) : '')}
-                options={availableContacts.map((c) => ({ value: c.id, label: `${c.name} (${c.phone})` }))}
-                placeholder={t('customers.selectContact')}
-                fullWidth
-              />
-              <div className="flex justify-end space-x-3 pt-4">
-                <Button variant="secondary" onClick={() => setShowContactModal(false)} type="button">
-                  {t('common.cancel')}
-                </Button>
-                <Button
-                  onClick={handleAddContact}
-                  loading={isContactSaving}
-                  disabled={!selectedContactId}
-                >
-                  {t('common.add')}
-                </Button>
-              </div>
-            </>
-          )}
+          <Input
+            value={contactQuery}
+            onChange={(e) => setContactQuery(e.target.value)}
+            placeholder={t('contacts.searchPlaceholder')}
+            fullWidth
+          />
+          <LookupList
+            query={contactQuery}
+            selectedId={typeof selectedContactId === 'number' ? selectedContactId : 0}
+            onSelect={(contact) => setSelectedContactId(contact.id)}
+            fetchPage={fetchContacts}
+            emptyLabel={t('customers.noAvailableContacts')}
+            loadMoreLabel={t('common.loadMore')}
+          />
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button variant="secondary" onClick={() => setShowContactModal(false)} type="button">
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleAddContact}
+              loading={isContactSaving}
+              disabled={!selectedContactId}
+            >
+              {t('common.add')}
+            </Button>
+          </div>
         </div>
       </Modal>
     </AppLayout>

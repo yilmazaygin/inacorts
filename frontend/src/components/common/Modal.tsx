@@ -6,6 +6,7 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  variant?: 'default' | 'site';
 }
 
 export const Modal: React.FC<ModalProps> = ({ 
@@ -14,6 +15,7 @@ export const Modal: React.FC<ModalProps> = ({
   title, 
   children,
   size = 'md',
+  variant = 'default',
 }) => {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -52,13 +54,13 @@ export const Modal: React.FC<ModalProps> = ({
         />
         
         {/* Modal */}
-        <div className={`relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full ${sizeStyles[size]} max-h-[90vh] overflow-hidden flex flex-col`}>
+        <div className={`relative flex w-full max-h-[90vh] flex-col overflow-hidden ${sizeStyles[size]} ${variant === 'site' ? 'border border-stone-200 bg-stone-50 dark:border-slate-800 dark:bg-slate-950' : 'rounded-lg bg-white shadow-xl dark:bg-gray-800'}`}>
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+          <div className={`flex items-center justify-between gap-4 border-b px-6 py-4 ${variant === 'site' ? 'border-stone-200 dark:border-slate-800' : 'border-gray-200 dark:border-gray-700'}`}>
+            <h2 className={variant === 'site' ? 'font-medium text-2xl leading-tight tracking-tight text-slate-950 dark:text-white' : 'text-xl font-semibold text-gray-900 dark:text-gray-100'}>{title}</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+              className={variant === 'site' ? 'shrink-0 text-slate-500 hover:text-slate-950 focus:outline-none dark:text-slate-400 dark:hover:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none'}
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

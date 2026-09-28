@@ -32,9 +32,10 @@ class CategoryService:
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "id",
-        order: str = "asc"
+        order: str = "asc",
+        search: Optional[str] = None,
     ) -> PaginatedResponse[CategoryResponse]:
-        items, total = self.repo.list_all(page, page_size, sort_by, order)
+        items, total = self.repo.list_all(page, page_size, sort_by, order, search)
         responses = []
         for item in items:
             responses.append(self._response(item))

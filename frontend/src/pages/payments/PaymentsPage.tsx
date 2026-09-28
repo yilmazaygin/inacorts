@@ -2,53 +2,51 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Table } from '@/components/common/Table';
 import { Pagination } from '@/components/common/Pagination';
+import { ExportBar } from '@/components/common/ExportBar';
 import { paymentsApi } from '@/api/payments';
-import { ordersApi } from '@/api/orders';
 import { formatCurrency, formatDate } from '@/utils/format';
-import type { Payment, Order } from '@/types/entities';
+import type { Payment } from '@/types/entities';
 import { PaymentMethod } from '@/types/enums';
 
 export const PaymentsPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     loadData();
-  }, [page]);
+  }, [page, startDate, endDate]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
       setError('');
-      const [paymentsData, ordersData] = await Promise.all([
-        paymentsApi.list({ page, page_size: 20 }),
-        ordersApi.list({ page_size: 1000 }),
-      ]);
-
+      const paymentsData = await paymentsApi.list({
+        page,
+        page_size: 20,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      });
       setPayments(paymentsData.items);
       setTotalPages(paymentsData.total_pages);
-      setOrders(ordersData.items);
     } catch (err: any) {
       setError(err.response?.data?.detail || t('errors.loadFailed'));
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getOrderInfo = (orderId: number) => {
-    return orders.find((o) => o.id === orderId);
   };
 
   const getMethodBadge = (method: PaymentMethod) => {
@@ -109,8 +107,7 @@ export const PaymentsPage: React.FC = () => {
       key: 'order_total',
       header: t('payments.orderTotal'),
       render: (p: Payment) => {
-        const order = getOrderInfo(p.order_id);
-        return order ? formatCurrency(order.total_amount) : '-';
+        return p.order_total != null ? formatCurrency(p.order_total) : '-';
       },
     },
   ];
@@ -119,9 +116,21 @@ export const PaymentsPage: React.FC = () => {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('payments.title')}</h1>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('payments.title')}</h1>
+          </div>
           <p className="text-gray-600 dark:text-gray-400 mt-1">{t('payments.subtitle')}</p>
         </div>
+
+        <Card>
+          <ExportBar
+            startDate={startDate}
+            endDate={endDate}
+            onStartDate={(value) => { setStartDate(value); setPage(1); }}
+            onEndDate={(value) => { setEndDate(value); setPage(1); }}
+          />
+        </Card>
 
         <Card>
           {error && <ErrorMessage message={error} onRetry={loadData} />}

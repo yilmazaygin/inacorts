@@ -10,6 +10,7 @@ export enum TagEntityType {
   CUSTOMER = 'customer',
   CONTACT = 'contact',
   PRODUCT = 'product',
+  ORDER = 'order',
 }
 
 export enum StockMovementType {

@@ -7,6 +7,9 @@ export default {
   darkMode: 'class', // Enable dark mode with class strategy
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
         primary: {
           50: '#f0f9ff',

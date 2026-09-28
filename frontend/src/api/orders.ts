@@ -10,6 +10,8 @@ interface OrderListParams extends PaginationParams {
   delivery_status?: DeliveryStatus;
   start_date?: string;
   end_date?: string;
+  created_by?: number;
+  tag_id?: number;
 }
 
 export const ordersApi = {
@@ -40,6 +42,11 @@ export const ordersApi = {
 
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/v1/orders/${id}`);
+  },
+
+  exportFile: async (params: OrderListParams & { format: 'csv' | 'xlsx'; lang: string }): Promise<void> => {
+    const { downloadExport } = await import('@/utils/download');
+    await downloadExport('/api/v1/orders/export', { ...params }, `orders.${params.format === 'xlsx' ? 'xlsx' : 'csv'}`);
   },
 
   deliverItem: async (itemId: number, data: DeliverOrderItemRequest): Promise<Order> => {

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -11,6 +12,7 @@ import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Table } from '@/components/common/Table';
 import { Pagination } from '@/components/common/Pagination';
 import { DropdownMenu } from '@/components/common/DropdownMenu';
+import { RecordFilters, emptyRecordFilters } from '@/components/common/RecordFilters';
 import { customersApi } from '@/api/customers';
 import { formatDate, getErrorMessage } from '@/utils/format';
 import type { Customer, CustomerCreate } from '@/types/entities';
@@ -18,6 +20,7 @@ import type { Customer, CustomerCreate } from '@/types/entities';
 export const CustomersPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,6 +28,7 @@ export const CustomersPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [recordFilters, setRecordFilters] = useState(emptyRecordFilters());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,13 +42,29 @@ export const CustomersPage: React.FC = () => {
 
   useEffect(() => {
     loadCustomers();
-  }, [page, search]);
+  }, [page, search, recordFilters]);
+
+  useEffect(() => {
+    if (searchParams.get('yeni') !== '1') return;
+    setShowCreateModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('yeni');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const loadCustomers = async () => {
     try {
       setIsLoading(true);
       setError('');
-      const data = await customersApi.list({ page, page_size: 20, search: search || undefined });
+      const data = await customersApi.list({
+        page,
+        page_size: 20,
+        search: search || undefined,
+        created_by: recordFilters.createdBy ? Number(recordFilters.createdBy) : undefined,
+        start_date: recordFilters.startDate || undefined,
+        end_date: recordFilters.endDate || undefined,
+        tag_id: recordFilters.tagId ? Number(recordFilters.tagId) : undefined,
+      });
       setCustomers(data.items);
       setTotalPages(data.total_pages);
     } catch (err: any) {
@@ -130,7 +150,10 @@ export const CustomersPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('customers.title')}</h1>
+            <div className="flex items-center gap-1">
+              <BackButton />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('customers.title')}</h1>
+            </div>
             {!isLoading && customers.length > 0 && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {t('customers.totalCustomers', { count: customers.length })}
@@ -169,6 +192,12 @@ export const CustomersPage: React.FC = () => {
               )}
             </div>
           </form>
+          <div className="mb-4">
+            <RecordFilters
+              value={recordFilters}
+              onChange={(next) => { setRecordFilters(next); setPage(1); }}
+            />
+          </div>
 
           {error && <ErrorMessage message={error} onRetry={loadCustomers} />}
 

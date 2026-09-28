@@ -1,8 +1,9 @@
-from fastapi import APIRouter, File, UploadFile
+from datetime import datetime
+from fastapi import APIRouter, File, Query, UploadFile
 from typing import Optional
 from app.api.v1.dependencies import CurrentUser, DatabaseSession
 from app.services.product_service import ProductService
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas.product import BulkPriceUpdate, ProductCreate, ProductUpdate, ProductResponse
 from app.schemas.common import PaginatedResponse
 from app.core.config import settings
 from app.core.exceptions import BadRequestException
@@ -14,15 +15,39 @@ router = APIRouter()
 def list_products(
     current_user: CurrentUser,
     db: DatabaseSession,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     sort: str = "id",
     order: str = "asc",
     search: Optional[str] = None,
-    category_id: Optional[int] = None
+    category_id: Optional[int] = None,
+    created_by: Optional[int] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    tag_id: Optional[int] = None,
+    show_on_site: Optional[bool] = None,
 ):
     service = ProductService(db)
-    return service.list_products(page, page_size, sort, order, search, category_id)
+    return service.list_products(
+        page, page_size, sort, order, search, category_id,
+        created_by, start_date, _end_of_day(end_date), tag_id, show_on_site,
+    )
+
+
+def _end_of_day(value: Optional[datetime]) -> Optional[datetime]:
+    if value and value.hour == 0 and value.minute == 0 and value.second == 0 and value.microsecond == 0:
+        return value.replace(hour=23, minute=59, second=59)
+    return value
+
+
+@router.post("/bulk-price")
+def bulk_update_prices(
+    data: BulkPriceUpdate,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+):
+    service = ProductService(db)
+    return service.bulk_update_prices(data, current_user.id)
 
 
 @router.post("", response_model=ProductResponse)

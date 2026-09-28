@@ -2,15 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { BackButton } from '@/components/layout/BackButton';
 import { Card } from '@/components/common/Card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { Badge } from '@/components/common/Badge';
 import { ordersApi } from '@/api/orders';
-import { productsApi } from '@/api/products';
-import { customersApi } from '@/api/customers';
-import { paymentsApi } from '@/api/payments';
-import { expensesApi } from '@/api/expenses';
+import { reportsApi } from '@/api/reports';
 import { formatCurrency, formatCompactCurrency, formatDate } from '@/utils/format';
 import { useBrand } from '@/contexts/BrandContext';
 import { Order } from '@/types/entities';
@@ -41,24 +39,18 @@ export const DashboardPage: React.FC = () => {
       setIsLoading(true);
       setError('');
 
-      const [ordersData, productsData, customersData, paymentsData, expensesData] = await Promise.all([
+      const [ordersData, summary] = await Promise.all([
         ordersApi.list({ page: 1, page_size: 10, sort: 'id', order: 'desc' }),
-        productsApi.list({ page: 1, page_size: 1 }),
-        customersApi.list({ page: 1, page_size: 1 }),
-        paymentsApi.list({ page: 1, page_size: 1000 }),
-        expensesApi.list({ page_size: 10000 }),
+        reportsApi.dashboard(),
       ]);
 
-      const totalRevenue = paymentsData.items.reduce((sum, p) => sum + p.amount, 0);
-      const totalExpenses = expensesData.items.reduce((sum, e) => sum + e.amount, 0);
-
       setStats({
-        totalOrders: ordersData.total,
-        totalProducts: productsData.total,
-        totalCustomers: customersData.total,
-        totalRevenue,
-        totalExpenses,
-        netProfit: totalRevenue - totalExpenses,
+        totalOrders: summary.total_orders,
+        totalProducts: summary.total_products,
+        totalCustomers: summary.total_customers,
+        totalRevenue: summary.total_revenue,
+        totalExpenses: summary.total_expenses,
+        netProfit: summary.net_profit,
       });
 
       setRecentOrders(ordersData.items);
@@ -102,7 +94,10 @@ export const DashboardPage: React.FC = () => {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('dashboard.title')}</h1>
+          <div className="flex items-center gap-1">
+            <BackButton />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('dashboard.title')}</h1>
+          </div>
           <p className="text-gray-600 dark:text-gray-400 mt-1">{t('dashboard.welcome', { brand })}</p>
         </div>
 
