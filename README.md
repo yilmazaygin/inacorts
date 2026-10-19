@@ -322,7 +322,7 @@ Closes management sign-in for every account, including admin. The login card sta
 | Command | What visitors get |
 | --- | --- |
 | `pages --no-pages` | Home, about, contact, products, cart, how to order, and the user agreement stop rendering. `/admin` still opens. |
-| `pages --page` | Those same addresses, and any other public path, show the standby page. `/admin` still opens. |
+| `pages --page` | Those same addresses, and any other public path, show the standby page. `/admin` still opens. Add a name (`pages --page isim`) to open the local page registered under that name. |
 | `pages --page --yonetim` | The standby page also covers `/admin`. |
 | `pages --ac` | The storefront returns to normal. `/admin` is included. |
 

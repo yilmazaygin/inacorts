@@ -9,7 +9,8 @@ ana sayfa ve diğer vitrin sayfalarını. İkisi birlikte de kullanılabilir.
 
   python -m app.utils.site_gate pages --no-pages
   python -m app.utils.site_gate pages --page
-  python -m app.utils.site_gate pages --page --yonetim
+  python -m app.utils.site_gate pages --page isim
+  python -m app.utils.site_gate pages --page isim --yonetim
   python -m app.utils.site_gate pages --ac
 
   python -m app.utils.site_gate durum
@@ -24,7 +25,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from app.core.site_gate import GateState, clean_message, load_gate, save_gate
+from app.core.site_gate import GateState, clean_message, clean_page_name, load_gate, save_gate
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -55,7 +56,8 @@ def _parser() -> argparse.ArgumentParser:
             "  login --ac\n"
             "  pages --no-pages\n"
             "  pages --page\n"
-            "  pages --page --yonetim\n"
+            "  pages --page isim\n"
+            "  pages --page isim --yonetim\n"
             "  pages --ac\n"
             "  durum"
         ),
@@ -70,7 +72,14 @@ def _parser() -> argparse.ArgumentParser:
     pages = commands.add_parser("pages", help="Ana sayfa ve diğer vitrin sayfalarını değiştirir.")
     mode = pages.add_mutually_exclusive_group(required=True)
     mode.add_argument("--no-pages", action="store_true", help="Vitrin sayfalarını kapat. /admin açık kalır.")
-    mode.add_argument("--page", action="store_true", help="Vitrin adreslerinde hazır sayfayı göster.")
+    mode.add_argument(
+        "--page",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="İSİM",
+        help="Vitrin adreslerinde hazır sayfayı göster. İsim verilirse o yerel sayfa açılır.",
+    )
     mode.add_argument("--ac", action="store_true", help="Vitrini normale döndür.")
     pages.add_argument(
         "--yonetim",
@@ -92,6 +101,7 @@ def _login(args: argparse.Namespace) -> GateState:
             login_message="",
             pages=current.pages,
             cover_admin=current.cover_admin,
+            page_name=current.page_name,
         ))
     if not args.message:
         raise ValueError("Girişi kapatırken --mesaj yaz. Bu yazı giriş kutusunun yerinde durur.")
@@ -106,11 +116,12 @@ def _login(args: argparse.Namespace) -> GateState:
         login_message=message,
         pages=current.pages,
         cover_admin=current.cover_admin,
+        page_name=current.page_name,
     ))
 
 
 def _pages(args: argparse.Namespace) -> GateState:
-    if args.yonetim and not args.page:
+    if args.yonetim and args.page is None:
         raise ValueError("--yonetim yalnızca --page ile birlikte kullanılır.")
     current = load_gate()
     if args.ac or args.no_pages:
@@ -120,13 +131,25 @@ def _pages(args: argparse.Namespace) -> GateState:
             login_message=current.login_message,
             pages=pages,
             cover_admin=False,
+            page_name="",
         ))
+    try:
+        page_name = clean_page_name(args.page or "")
+    except ValueError as exc:
+        raise ValueError("Sayfa adı en fazla 40 karakter olur: küçük harf, rakam ve tire.") from exc
     return save_gate(GateState(
         login_locked=current.login_locked,
         login_message=current.login_message,
         pages="page",
         cover_admin=args.yonetim,
+        page_name=page_name,
     ))
+
+
+def _page_label(page_name: str) -> str:
+    if page_name:
+        return f"hazır sayfa (--page {page_name})"
+    return "hazır sayfa (--page)"
 
 
 def _format(state: GateState) -> str:
@@ -138,10 +161,10 @@ def _format(state: GateState) -> str:
         storefront = "kapalı (--no-pages)"
         admin = "açık (/admin)"
     elif state.pages == "page" and state.cover_admin:
-        storefront = "hazır sayfa (--page)"
+        storefront = _page_label(state.page_name)
         admin = "hazır sayfa (--yonetim)"
     elif state.pages == "page":
-        storefront = "hazır sayfa (--page)"
+        storefront = _page_label(state.page_name)
         admin = "açık (/admin)"
     else:
         storefront = "açık"

@@ -3,6 +3,7 @@ export interface SiteGate {
   login_message: string;
   pages: 'open' | 'closed' | 'page';
   cover_admin: boolean;
+  page_name: string;
 }
 
 export interface SalesConsultant {

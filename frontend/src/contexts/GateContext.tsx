@@ -7,6 +7,7 @@ const OPEN: SiteGate = {
   login_message: '',
   pages: 'open',
   cover_admin: false,
+  page_name: '',
 };
 
 interface GateContextValue extends SiteGate {
@@ -22,6 +23,7 @@ const normalize = (value: SiteGate): SiteGate => {
     login_message: typeof value.login_message === 'string' ? value.login_message : '',
     pages,
     cover_admin: pages === 'page' && Boolean(value.cover_admin),
+    page_name: pages === 'page' && typeof value.page_name === 'string' ? value.page_name : '',
   };
 };
 

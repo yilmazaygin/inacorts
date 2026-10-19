@@ -26,6 +26,7 @@ class GateState:
     login_message: str = ""
     pages: str = "open"
     cover_admin: bool = False
+    page_name: str = ""
 
     def public(self) -> dict:
         custom = self.pages == "page"
@@ -34,6 +35,7 @@ class GateState:
             "login_message": self.login_message if self.login_locked else "",
             "pages": self.pages if self.pages in _PAGES else "open",
             "cover_admin": self.cover_admin if custom else False,
+            "page_name": self.page_name if custom else "",
         }
 
 
@@ -66,11 +68,15 @@ def load_gate() -> GateState:
     message = raw.get("login_message", "")
     if not isinstance(message, str):
         message = ""
+    page_name = raw.get("page_name", "")
+    if not isinstance(page_name, str):
+        page_name = ""
     return GateState(
         login_locked=bool(raw.get("login_locked")),
         login_message=message.strip(),
         pages=pages,
         cover_admin=bool(raw.get("cover_admin")),
+        page_name=page_name.strip().lower(),
     )
 
 
@@ -82,6 +88,7 @@ def save_gate(state: GateState) -> GateState:
         "login_message": state.login_message if state.login_locked else "",
         "pages": state.pages,
         "cover_admin": state.cover_admin if state.pages == "page" else False,
+        "page_name": state.page_name if state.pages == "page" else "",
     }
     temporary = path.with_suffix(".json.tmp")
     temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -114,6 +121,15 @@ def _sqlite_file() -> Path | None:
     if not path.is_absolute():
         path = (_BACKEND_DIR / path).resolve()
     return path
+
+
+def clean_page_name(name: str) -> str:
+    text = name.strip().lower()
+    if not text:
+        return ""
+    if len(text) > 40 or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in text):
+        raise ValueError("bad-name")
+    return text
 
 
 def clean_message(message: str) -> str:

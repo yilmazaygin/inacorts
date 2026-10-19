@@ -8,3 +8,4 @@ class GateStatus(BaseModel):
     login_message: str
     pages: Literal["open", "closed", "page"]
     cover_admin: bool
+    page_name: str = ""

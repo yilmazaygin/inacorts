@@ -459,7 +459,7 @@ Admin dahil hiçbir hesap giriş yapamaz. Şifre sıfırlama da kapanır. Açık
 | Komut | Ne olur |
 | --- | --- |
 | `pages --no-pages` | Ana sayfa, hakkımızda, iletişim, ürünler, sepet, nasıl sipariş verilir ve kullanıcı sözleşmesi görünmez. Adres çubuğuna yazılan başka bir vitrin yolu da boş kalır. `/admin` açılır. |
-| `pages --page` | Bu adreslerin hepsi hazır sayfayı gösterir. `/admin` açılır. |
+| `pages --page` | Bu adreslerin hepsi hazır sayfayı gösterir. `/admin` açılır. `pages --page isim` dersen o ada kayıtlı yerel sayfa açılır. |
 | `pages --page --yonetim` | Hazır sayfa `/admin` adresinde de görünür. |
 | `pages --ac` | Vitrin normale döner. `/admin` de normale döner. |
 

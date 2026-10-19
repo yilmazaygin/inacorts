@@ -7,7 +7,8 @@
 #   ./scripts/site-gate login --ac
 #   ./scripts/site-gate pages --no-pages
 #   ./scripts/site-gate pages --page
-#   ./scripts/site-gate pages --page --yonetim
+#   ./scripts/site-gate pages --page isim
+#   ./scripts/site-gate pages --page isim --yonetim
 #   ./scripts/site-gate pages --ac
 
 set -e
