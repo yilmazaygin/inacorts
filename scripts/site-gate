@@ -1,0 +1,15 @@
+#!/bin/sh
+# Vitrin ve yönetim giriş anahtarları.
+# Proje klasöründen çalışır ve komutu backend konteynerine iletir.
+#
+#   ./scripts/site-gate durum
+#   ./scripts/site-gate login --kapat --mesaj "Giriş geçici olarak kapalı."
+#   ./scripts/site-gate login --ac
+#   ./scripts/site-gate pages --no-pages
+#   ./scripts/site-gate pages --page
+#   ./scripts/site-gate pages --page --yonetim
+#   ./scripts/site-gate pages --ac
+
+set -e
+cd "$(dirname "$0")/.."
+exec docker compose exec -T backend python -m app.utils.site_gate "$@"

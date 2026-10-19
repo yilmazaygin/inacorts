@@ -4,6 +4,7 @@ from app.repositories.user_repository import UserRepository
 from app.core.security import verify_password, hash_password
 from app.core.jwt import create_access_token, create_refresh_token, decode_token
 from app.core.exceptions import UnauthorizedException, BadRequestException, NotFoundException
+from app.core.site_gate import assert_login_open
 from app.schemas.auth import Token, TokenRefresh, ForgotPasswordQuestionsResponse
 from app.schemas.user import UserResponse
 from loguru import logger
@@ -15,6 +16,7 @@ class AuthService:
         self.user_repo = UserRepository(db)
     
     def authenticate(self, username: str, password: str) -> Token:
+        assert_login_open()
         logger.info(f"Login attempt for user: {username}")
         
         # Block service accounts from interactive login
@@ -43,6 +45,7 @@ class AuthService:
         )
     
     def refresh_access_token(self, refresh_token: str) -> TokenRefresh:
+        assert_login_open()
         payload = decode_token(refresh_token)
         
         if not payload or payload.get("type") != "refresh":
@@ -63,8 +66,9 @@ class AuthService:
         return TokenRefresh(access_token=access_token)
     
     def get_current_user(self, token: str):
+        assert_login_open()
         payload = decode_token(token)
-        
+
         if not payload or payload.get("type") != "access":
             logger.debug("Authentication failed - Invalid access token")
             raise UnauthorizedException("Invalid access token")
@@ -79,6 +83,7 @@ class AuthService:
         return user
     
     def get_security_questions(self, username: str) -> ForgotPasswordQuestionsResponse:
+        assert_login_open()
         user = self.user_repo.get_by_username(username)
         
         if not user:
@@ -100,6 +105,7 @@ class AuthService:
     def reset_password_with_security_answers(
         self, username: str, answer_1: str, answer_2: str, new_password: str
     ) -> None:
+        assert_login_open()
         user = self.user_repo.get_by_username(username)
         
         if not user or not user.is_active:
@@ -129,6 +135,7 @@ class AuthService:
     def verify_security_answers(self, username: str, answer_1: str, answer_2: str) -> bool:
         """Verify security answers without resetting password.
         Used in the multi-step forgot password flow."""
+        assert_login_open()
         user = self.user_repo.get_by_username(username)
         
         if not user or not user.is_active:

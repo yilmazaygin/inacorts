@@ -23,6 +23,10 @@ class Settings(BaseSettings):
 
     # Local directory for uploaded files. Overridden to /uploads in Docker.
     UPLOAD_DIR: str = str(_BACKEND_DIR / "uploads")
+
+    # Optional override for the storefront / sign-in switch file.
+    # Empty means "next to the SQLite database" (site_gate.json).
+    SITE_GATE_PATH: str = ""
     MAX_PRODUCT_IMAGE_BYTES: int = 5 * 1024 * 1024
 
     # When true, and the product table is empty, load the local demo catalogue.

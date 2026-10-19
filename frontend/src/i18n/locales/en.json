@@ -118,6 +118,7 @@
     "backToLogin": "Back to Login",
     "passwordsDoNotMatch": "Passwords do not match",
     "signIn": "Sign In",
+    "signInClosed": "Sign-in is closed.",
     "systemTitle": "{{brand}}",
     "systemDescription": "Inventory Accounting Customer Order Tracking System",
     "userNotFound": "User not found",
@@ -688,5 +689,8 @@
     "welcome": "Welcome to {{brand}}. Here you can find more details about the project.",
     "goToLogin": "Go to Login Page",
     "viewOnGithub": "View the project on GitHub"
+  },
+  "standby": {
+    "title": "Our site is under maintenance right now."
   }
 }

@@ -118,6 +118,7 @@
     "backToLogin": "Giriş Sayfasına Dön",
     "passwordsDoNotMatch": "Şifreler eşleşmiyor",
     "signIn": "Giriş Yap",
+    "signInClosed": "Giriş kapalı.",
     "systemTitle": "{{brand}}",
     "systemDescription": "Envanter Muhasebe Müşteri Sipariş Takip Sistemi",
     "userNotFound": "Kullanıcı bulunamadı",
@@ -688,5 +689,8 @@
     "welcome": "{{brand}} paneline hoş geldiniz. Proje hakkında daha fazla bilgiyi burada bulabilirsiniz.",
     "goToLogin": "Giriş Sayfasına Git",
     "viewOnGithub": "Projeyi GitHub'da görüntüle"
+  },
+  "standby": {
+    "title": "Sitemiz şu anda bakım altındadır."
   }
 }

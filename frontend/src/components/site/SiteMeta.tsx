@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { publicSiteApi } from '@/api/publicSite';
+import { isAdminPath, useGate } from '@/contexts/GateContext';
 import { siteLabel } from '@/utils/siteText';
 import type { SiteContent } from '@/types/site';
 
@@ -52,6 +53,13 @@ function iconType(href: string): string {
 export const SiteMeta: React.FC = () => {
   const { pathname } = useLocation();
   const { t, i18n } = useTranslation();
+  const gate = useGate();
+  const admin = isAdminPath(pathname);
+  const replaced =
+    gate.ready &&
+    ((gate.pages === 'closed' && !admin) ||
+      (gate.pages === 'page' && (!admin || gate.cover_admin)) ||
+      (gate.login_locked && admin));
   const [site, setSite] = useState<SiteContent | null>(null);
   const [favicon, setFavicon] = useState<string | null>(null);
 
@@ -70,10 +78,11 @@ export const SiteMeta: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (replaced) return;
     const brand = site?.company_name?.trim() || 'INACORTS';
     const section = sectionFor(pathname, t, site, i18n.language);
     document.title = section ? `${section} · ${brand}` : brand;
-  }, [pathname, site, i18n.language, t]);
+  }, [pathname, site, i18n.language, t, replaced]);
 
   useEffect(() => {
     const href = favicon || '/favicon.svg';

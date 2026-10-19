@@ -66,7 +66,8 @@ backend/
 │   │   ├── security.py           # Password hashing (bcrypt)
 │   │   ├── jwt.py                # JWT token create / verify
 │   │   ├── logging.py            # Loguru configuration
-│   │   └── exceptions.py         # Custom exception classes
+│   │   ├── exceptions.py         # Custom exception classes
+│   │   └── site_gate.py          # Storefront / sign-in switch state
 │   │
 │   ├── db/                   # Database layer
 │   │   ├── session.py            # SQLAlchemy engine & SessionLocal
@@ -122,9 +123,10 @@ backend/
 │   │   ├── note_service.py
 │   │   └── tag_service.py
 │   │
-│   └── utils/                # Development utilities
+│   └── utils/                # Utilities
 │       ├── reset_db.py           # Drop & recreate all tables
-│       └── sample_data_generator.py  # Generate demo dataset
+│       ├── sample_data_generator.py  # Generate demo dataset
+│       └── site_gate.py          # Storefront / sign-in commands
 │
 └── logs/                     # Runtime log files (gitignored)
 ```
@@ -235,6 +237,14 @@ python -m app.utils.sample_data_generator --reset   # reset first, then generate
 **Generated:** 8 customers, 10 contacts, 4 product categories, 12 products,
 15 orders (7 completed, 2 partial, 5 open, 1 canceled), deliveries, payments,
 10 expenses with edit history, 6 notes, 5 tags.
+
+### Storefront and sign-in switches
+
+See the root [README](../README.md#storefront-and-sign-in-switches). On the server:
+
+```bash
+./scripts/site-gate durum
+```
 
 ---
 

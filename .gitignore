@@ -41,6 +41,13 @@ build/
 *.sqlite
 *.sqlite3
 
+# Storefront / sign-in switch. Written on the server, next to the database.
+database/site_gate.json
+
+# Optional local page for `pages --page`. The repository ships the maintenance page.
+frontend/src/pages/site/StandbyPage.local.tsx
+frontend/src/pages/site/standby-local/
+
 # Database directory — keep the folder, ignore db files
 database/*.db
 database/*.sqlite

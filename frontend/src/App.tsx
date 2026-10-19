@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { GateProvider } from './contexts/GateContext';
+import { GateSwitch } from './components/site/GateSwitch';
 import { CartProvider } from './contexts/CartContext';
 import { BrandProvider } from './contexts/BrandContext';
 import { SiteMeta } from './components/site/SiteMeta';
@@ -89,10 +91,12 @@ const AdminPublicRoute: React.FC<{ children: React.ReactNode }> = ({ children })
 function App() {
   return (
     <BrowserRouter>
+      <GateProvider>
       <AuthProvider>
         <CartProvider>
         <BrandProvider>
         <SiteMeta />
+        <GateSwitch>
         <Routes>
           {/* Public Landing Page – no auth required */}
           <Route path="/" element={<LandingPage />} />
@@ -292,9 +296,11 @@ function App() {
           {/* Catch all other unknown routes → redirect to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </GateSwitch>
         </BrandProvider>
         </CartProvider>
       </AuthProvider>
+      </GateProvider>
     </BrowserRouter>
   );
 }

@@ -4,6 +4,16 @@ All notable changes to INACORTS are documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Server commands to close management sign-in (`login`) and to close or replace the public storefront (`pages --no-pages`, `pages --page`, `pages --page --yonetim`)
+- Default standby page: a maintenance screen in Turkish and English
+- Optional local standby page (`StandbyPage.local.tsx`), gitignored, so a machine can show its own page
+
+---
+
 ## [1.2.0] — 2026-03-03
 
 ### Added

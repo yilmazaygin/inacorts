@@ -177,7 +177,7 @@ Docker volumes keep data safe across restarts and image rebuilds:
 
 | Volume | Container path | Contents |
 | --- | --- | --- |
-| `inacorts_database` | `/database/` | SQLite database |
+| `inacorts_database` | `/database/` | SQLite database and `site_gate.json` |
 | `inacorts_uploads` | `/uploads/` | Product images |
 | `inacorts_logs` | `/app/logs/` | Active logs (7 d) + archived logs (14 d) |
 
@@ -281,6 +281,107 @@ cd backend
 python -m app.utils.sample_data_generator          # generate only
 python -m app.utils.sample_data_generator --reset   # reset DB first
 ```
+
+---
+
+## Storefront and sign-in switches
+
+Two commands, run on the server, change what visitors see. They are independent: closing sign-in leaves the storefront alone, and closing the storefront leaves sign-in alone. You can use both at once.
+
+The switch is a small file, `site_gate.json`, stored next to the database on the `inacorts_database` volume. It survives restarts and image rebuilds. `docker compose down -v` deletes it along with the database. Changing a switch does not require a restart. Open browser tabs pick it up within a few seconds.
+
+Run the commands from the project directory (the folder that contains `docker-compose.yml`):
+
+```bash
+./scripts/site-gate durum
+```
+
+The same module inside the backend container:
+
+```bash
+docker compose exec -T backend python -m app.utils.site_gate durum
+```
+
+Locally, from `backend/`:
+
+```bash
+python -m app.utils.site_gate durum
+```
+
+### Sign-in (`login`)
+
+Closes management sign-in for every account, including admin. The login card stays, and the form is replaced by the message you write. Password reset is closed too. A session that was already open stops working until you open sign-in again.
+
+```bash
+./scripts/site-gate login --kapat --mesaj "Giriş geçici olarak kapalı."
+./scripts/site-gate login --ac
+```
+
+### Storefront (`pages`)
+
+| Command | What visitors get |
+| --- | --- |
+| `pages --no-pages` | Home, about, contact, products, cart, how to order, and the user agreement stop rendering. `/admin` still opens. |
+| `pages --page` | Those same addresses, and any other public path, show the standby page. `/admin` still opens. |
+| `pages --page --yonetim` | The standby page also covers `/admin`. |
+| `pages --ac` | The storefront returns to normal. `/admin` is included. |
+
+```bash
+./scripts/site-gate pages --no-pages
+./scripts/site-gate pages --page
+./scripts/site-gate pages --page --yonetim
+./scripts/site-gate pages --ac
+```
+
+`--yonetim` only belongs with `--page`. Running `pages --page` again without `--yonetim` leaves the standby page on the storefront and opens `/admin` again.
+
+While `--no-pages` is on, the public page is blank. There is no menu and no link to management. Open `/admin` by typing the address.
+
+The commands still work from the server when the site itself is closed. That is how you turn the switches back off.
+
+### The standby page
+
+`pages --page` shows `frontend/src/pages/site/MaintenancePage.tsx`. The text follows the site language:
+
+- Türkçe: Sitemiz şu anda bakım altındadır.
+- English: Our site is under maintenance right now.
+
+The corner of that page has the same language and theme controls as the rest of the site.
+
+To show a different page on one machine, without committing it, add this file:
+
+`frontend/src/pages/site/StandbyPage.local.tsx`
+
+It must export a React component named `StandbyPage`. The gate renders that component on its own, full screen, without the storefront menu. Put images and other assets for it in `frontend/src/pages/site/standby-local/` and import them from the local file. Both paths are gitignored, so `git pull` leaves them in place and does not publish them.
+
+```tsx
+export const StandbyPage = () => (
+  <main className="flex min-h-screen items-center justify-center bg-stone-50">
+    <h1 className="text-3xl font-medium">Kendi sayfan</h1>
+  </main>
+);
+```
+
+Rebuild the frontend so the image picks the file up:
+
+```bash
+docker compose up --build -d
+```
+
+Delete `StandbyPage.local.tsx` and rebuild again to return to the maintenance page. The `pages` command does not need to change.
+
+### Together
+
+| Storefront | Sign-in | Result |
+| --- | --- | --- |
+| `--ac` | `--ac` | Normal site, normal sign-in |
+| `--no-pages` | `--ac` | Blank storefront, `/admin` works |
+| `--no-pages` | `--kapat` | Blank storefront, sign-in shows your message |
+| `--page` | `--ac` | Standby page on the storefront, `/admin` works |
+| `--page` | `--kapat` | Standby page on the storefront, sign-in shows your message |
+| `--page --yonetim` | either | Standby page on the storefront and on `/admin` |
+
+`durum` prints the current combination.
 
 ---
 

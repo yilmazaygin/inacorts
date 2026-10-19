@@ -1,3 +1,10 @@
+export interface SiteGate {
+  login_locked: boolean;
+  login_message: string;
+  pages: 'open' | 'closed' | 'page';
+  cover_admin: boolean;
+}
+
 export interface SalesConsultant {
   name: string;
   phone: string;

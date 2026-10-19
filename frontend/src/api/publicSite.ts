@@ -1,7 +1,12 @@
 import apiClient from './client';
-import type { AgreementAdmin, AgreementUpdate, PublicAgreement, PublicCategory, PublicProduct, PublicProductPage, SiteContent } from '@/types/site';
+import type { AgreementAdmin, AgreementUpdate, PublicAgreement, PublicCategory, PublicProduct, PublicProductPage, SiteContent, SiteGate } from '@/types/site';
 
 export const publicSiteApi = {
+  gate: async (): Promise<SiteGate> => {
+    const response = await apiClient.get<SiteGate>('/api/v1/public/gate');
+    return response.data;
+  },
+
   site: async (): Promise<SiteContent> => {
     const response = await apiClient.get<SiteContent>('/api/v1/public/site');
     return response.data;

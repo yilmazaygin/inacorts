@@ -429,3 +429,100 @@ http://127.0.0.1:3000         ← Docker Frontend (Nginx container)
 | Host Nginx | 80, 443 | ✅ Evet |
 | Docker Frontend | 3000 (host) → 80 (container) | ✅ Evet (localhost) |
 | Docker Backend | 8000 (container only) | ❌ Hayır |
+
+---
+
+## BÖLÜM 9: Vitrin ve yönetim girişi
+
+İki komut var. Biri yönetim girişini açıp kapatır. Diğeri ana sayfayı ve diğer vitrin sayfalarını değiştirir. Birbirinden bağımsız çalışırlar; ikisini aynı anda da kullanabilirsin.
+
+Ayar, veritabanının yanındaki `site_gate.json` dosyasına yazılır. Konteyner yeniden başlasa da, imaj yenilense de durur. `docker compose down -v` bu dosyayı veritabanıyla birlikte siler. Komuttan sonra servisi yeniden başlatmana gerek yok. Açık sekme birkaç saniye içinde yeni hale geçer.
+
+Komutları proje klasöründe çalıştır (`docker-compose.yml` dosyasının durduğu yer):
+
+```bash
+cd ~/inacorts-ex
+./scripts/site-gate durum
+```
+
+### Girişi kapatmak ve açmak
+
+Admin dahil hiçbir hesap giriş yapamaz. Şifre sıfırlama da kapanır. Açık oturum da düşer. Giriş kartı durur; formun yerinde senin yazın görünür.
+
+```bash
+./scripts/site-gate login --kapat --mesaj "Giriş geçici olarak kapalı."
+./scripts/site-gate login --ac
+```
+
+### Vitrin sayfaları
+
+| Komut | Ne olur |
+| --- | --- |
+| `pages --no-pages` | Ana sayfa, hakkımızda, iletişim, ürünler, sepet, nasıl sipariş verilir ve kullanıcı sözleşmesi görünmez. Adres çubuğuna yazılan başka bir vitrin yolu da boş kalır. `/admin` açılır. |
+| `pages --page` | Bu adreslerin hepsi hazır sayfayı gösterir. `/admin` açılır. |
+| `pages --page --yonetim` | Hazır sayfa `/admin` adresinde de görünür. |
+| `pages --ac` | Vitrin normale döner. `/admin` de normale döner. |
+
+```bash
+./scripts/site-gate pages --no-pages
+./scripts/site-gate pages --page
+./scripts/site-gate pages --page --yonetim
+./scripts/site-gate pages --ac
+```
+
+`--yonetim` yalnızca `--page` ile yazılır. Yönetimi yeniden açmak için aynı sayfa durusun istiyorsan komutu bayraksız tekrarla:
+
+```bash
+./scripts/site-gate pages --page
+```
+
+`--no-pages` açıkken sayfa boştur. Menü yoktur, yönetime giden bir bağlantı da yoktur. Yönetim için adresi kendin yazarsın: `/admin`.
+
+Site kapalıyken de bu komutlar sunucudan çalışır. Geri açmak için yine bunları kullanırsın.
+
+### Hazır sayfa
+
+`pages --page` öncelikle depodaki bakım sayfasını gösterir. Dil, sitedeki dil anahtarıyla değişir.
+
+- Türkçe: Sitemiz şu anda bakım altındadır.
+- English: Our site is under maintenance right now.
+
+Başka bir sayfa göstermek istersen, onu yalnızca o makinede tutabilirsin. Şu dosyayı oluştur:
+
+`frontend/src/pages/site/StandbyPage.local.tsx`
+
+Dosya `StandbyPage` adında bir React bileşeni export etmeli. Sayfa tam ekran çizilir; vitrin menüsü eklenmez. Görselleri `frontend/src/pages/site/standby-local/` içine koyup bu dosyadan import edebilirsin. İki yol da `.gitignore` içindedir. `git pull` bunları silmez ve GitHub'a göndermez.
+
+```tsx
+export const StandbyPage = () => (
+  <main className="flex min-h-screen items-center justify-center bg-stone-50">
+    <h1 className="text-3xl font-medium">Kendi sayfan</h1>
+  </main>
+);
+```
+
+Dosyayı ekledikten veya değiştirdikten sonra frontend imajını yeniden üret:
+
+```bash
+docker compose up --build -d
+```
+
+Bakım sayfasına dönmek için `StandbyPage.local.tsx` dosyasını sil ve aynı build komutunu tekrar çalıştır. `pages` komutunu değiştirmen gerekmez.
+
+### İkisi birlikte
+
+| Vitrin | Giriş | Sonuç |
+| --- | --- | --- |
+| `--ac` | `--ac` | Site ve giriş normal |
+| `--no-pages` | `--ac` | Vitrin boş, `/admin` çalışır |
+| `--no-pages` | `--kapat` | Vitrin boş, girişte senin yazın durur |
+| `--page` | `--ac` | Vitrinde hazır sayfa, `/admin` çalışır |
+| `--page` | `--kapat` | Vitrinde hazır sayfa, girişte senin yazın durur |
+| `--page --yonetim` | fark etmez | Hazır sayfa vitrinde de `/admin` üzerinde de durur |
+
+Güncel hali görmek için:
+
+```bash
+./scripts/site-gate durum
+```
+
