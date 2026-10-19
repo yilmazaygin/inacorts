@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBrand } from '@/contexts/BrandContext';
@@ -134,6 +134,12 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
         </form>
+        <Link
+          to="/"
+          className="mt-6 block w-full rounded-lg bg-gray-200 px-4 py-2 text-center text-base font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+        >
+          {t('nav.goHome')}
+        </Link>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useBrand } from '@/contexts/BrandContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -65,6 +66,12 @@ export const LoginClosedPage: React.FC<LoginClosedPageProps> = ({ message }) => 
         <p className="whitespace-pre-wrap break-words text-center text-base leading-relaxed text-gray-800 dark:text-gray-100">
           {text}
         </p>
+        <Link
+          to="/"
+          className="mt-8 block w-full rounded-lg bg-gray-200 px-4 py-2 text-center text-base font-medium text-gray-900 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+        >
+          {t('nav.goHome')}
+        </Link>
       </div>
     </div>
   );
